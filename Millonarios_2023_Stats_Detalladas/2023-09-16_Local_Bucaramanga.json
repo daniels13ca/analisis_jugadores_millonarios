@@ -1,0 +1,624 @@
+{
+    "metadata": {
+        "equipo": "Millonarios FC",
+        "rival": "Bucaramanga",
+        "condicion": "Local",
+        "campeonato": "Primera A",
+        "fecha": "2023-09-16",
+        "resultado": "3 - 0"
+    },
+    "jugadores": [
+        {
+            "nombre": "Álvaro Montero",
+            "posicion": "G",
+            "minutos": 100,
+            "calificacion": "6.9",
+            "titular": true,
+            "rendimiento": {
+                "remates_totales": 0,
+                "remates_al_arco": 0,
+                "goles": 0,
+                "asistencias": 0,
+                "pases": {
+                    "totales": 18,
+                    "precision": "13%"
+                },
+                "defensa": {
+                    "entradas": 0,
+                    "intercepciones": 0,
+                    "despejes": 0
+                },
+                "duelos": {
+                    "totales": 1,
+                    "ganados": 1
+                },
+                "faltas": {
+                    "cometidas": 0,
+                    "recibidas": 1
+                },
+                "tarjetas": {
+                    "amarilla": 0,
+                    "roja": 0
+                }
+            }
+        },
+        {
+            "nombre": "Sander Navarro",
+            "posicion": "D",
+            "minutos": 100,
+            "calificacion": "6.9",
+            "titular": true,
+            "rendimiento": {
+                "remates_totales": 0,
+                "remates_al_arco": 0,
+                "goles": 0,
+                "asistencias": 0,
+                "pases": {
+                    "totales": 23,
+                    "precision": "16%"
+                },
+                "defensa": {
+                    "entradas": 4,
+                    "intercepciones": 0,
+                    "despejes": 0
+                },
+                "duelos": {
+                    "totales": 7,
+                    "ganados": 5
+                },
+                "faltas": {
+                    "cometidas": 0,
+                    "recibidas": 0
+                },
+                "tarjetas": {
+                    "amarilla": 0,
+                    "roja": 0
+                }
+            }
+        },
+        {
+            "nombre": "Andrés Llinás",
+            "posicion": "D",
+            "minutos": 65,
+            "calificacion": "6.9",
+            "titular": true,
+            "rendimiento": {
+                "remates_totales": 1,
+                "remates_al_arco": 1,
+                "goles": 0,
+                "asistencias": 0,
+                "pases": {
+                    "totales": 30,
+                    "precision": "22%"
+                },
+                "defensa": {
+                    "entradas": 1,
+                    "intercepciones": 1,
+                    "despejes": 1
+                },
+                "duelos": {
+                    "totales": 6,
+                    "ganados": 2
+                },
+                "faltas": {
+                    "cometidas": 3,
+                    "recibidas": 0
+                },
+                "tarjetas": {
+                    "amarilla": 0,
+                    "roja": 0
+                }
+            }
+        },
+        {
+            "nombre": "Juan Pablo Vargas",
+            "posicion": "D",
+            "minutos": 100,
+            "calificacion": "7.2",
+            "titular": true,
+            "rendimiento": {
+                "remates_totales": 1,
+                "remates_al_arco": 1,
+                "goles": 0,
+                "asistencias": 0,
+                "pases": {
+                    "totales": 38,
+                    "precision": "31%"
+                },
+                "defensa": {
+                    "entradas": 2,
+                    "intercepciones": 1,
+                    "despejes": 0
+                },
+                "duelos": {
+                    "totales": 6,
+                    "ganados": 4
+                },
+                "faltas": {
+                    "cometidas": 1,
+                    "recibidas": 0
+                },
+                "tarjetas": {
+                    "amarilla": 0,
+                    "roja": 0
+                }
+            }
+        },
+        {
+            "nombre": "Omar Bertel",
+            "posicion": "D",
+            "minutos": 100,
+            "calificacion": "7.3",
+            "titular": true,
+            "rendimiento": {
+                "remates_totales": 0,
+                "remates_al_arco": 0,
+                "goles": 0,
+                "asistencias": 0,
+                "pases": {
+                    "totales": 44,
+                    "precision": "37%"
+                },
+                "defensa": {
+                    "entradas": 1,
+                    "intercepciones": 2,
+                    "despejes": 0
+                },
+                "duelos": {
+                    "totales": 6,
+                    "ganados": 4
+                },
+                "faltas": {
+                    "cometidas": 1,
+                    "recibidas": 0
+                },
+                "tarjetas": {
+                    "amarilla": 0,
+                    "roja": 0
+                }
+            }
+        },
+        {
+            "nombre": "Juan Pereira",
+            "posicion": "M",
+            "minutos": 100,
+            "calificacion": "7.2",
+            "titular": true,
+            "rendimiento": {
+                "remates_totales": 0,
+                "remates_al_arco": 0,
+                "goles": 0,
+                "asistencias": 0,
+                "pases": {
+                    "totales": 44,
+                    "precision": "40%"
+                },
+                "defensa": {
+                    "entradas": 3,
+                    "intercepciones": 2,
+                    "despejes": 0
+                },
+                "duelos": {
+                    "totales": 6,
+                    "ganados": 4
+                },
+                "faltas": {
+                    "cometidas": 0,
+                    "recibidas": 1
+                },
+                "tarjetas": {
+                    "amarilla": 0,
+                    "roja": 0
+                }
+            }
+        },
+        {
+            "nombre": "Larry Vásquez",
+            "posicion": "M",
+            "minutos": 87,
+            "calificacion": "7.5",
+            "titular": true,
+            "rendimiento": {
+                "remates_totales": 0,
+                "remates_al_arco": 0,
+                "goles": 0,
+                "asistencias": 0,
+                "pases": {
+                    "totales": 58,
+                    "precision": "54%"
+                },
+                "defensa": {
+                    "entradas": 7,
+                    "intercepciones": 0,
+                    "despejes": 0
+                },
+                "duelos": {
+                    "totales": 13,
+                    "ganados": 7
+                },
+                "faltas": {
+                    "cometidas": 2,
+                    "recibidas": 0
+                },
+                "tarjetas": {
+                    "amarilla": 1,
+                    "roja": 0
+                }
+            }
+        },
+        {
+            "nombre": "Edgar Guerra",
+            "posicion": "M",
+            "minutos": 73,
+            "calificacion": "8.2",
+            "titular": true,
+            "rendimiento": {
+                "remates_totales": 2,
+                "remates_al_arco": 1,
+                "goles": 1,
+                "asistencias": 1,
+                "pases": {
+                    "totales": 21,
+                    "precision": "15%"
+                },
+                "defensa": {
+                    "entradas": 2,
+                    "intercepciones": 0,
+                    "despejes": 0
+                },
+                "duelos": {
+                    "totales": 6,
+                    "ganados": 4
+                },
+                "faltas": {
+                    "cometidas": 1,
+                    "recibidas": 2
+                },
+                "tarjetas": {
+                    "amarilla": 0,
+                    "roja": 0
+                }
+            }
+        },
+        {
+            "nombre": "Daniel Ruiz",
+            "posicion": "M",
+            "minutos": 87,
+            "calificacion": "7.7",
+            "titular": true,
+            "rendimiento": {
+                "remates_totales": 2,
+                "remates_al_arco": 1,
+                "goles": 0,
+                "asistencias": 0,
+                "pases": {
+                    "totales": 44,
+                    "precision": "36%"
+                },
+                "defensa": {
+                    "entradas": 0,
+                    "intercepciones": 0,
+                    "despejes": 0
+                },
+                "duelos": {
+                    "totales": 6,
+                    "ganados": 2
+                },
+                "faltas": {
+                    "cometidas": 1,
+                    "recibidas": 1
+                },
+                "tarjetas": {
+                    "amarilla": 0,
+                    "roja": 0
+                }
+            }
+        },
+        {
+            "nombre": "Jader Valencia",
+            "posicion": "M",
+            "minutos": 86,
+            "calificacion": "7.2",
+            "titular": true,
+            "rendimiento": {
+                "remates_totales": 1,
+                "remates_al_arco": 0,
+                "goles": 0,
+                "asistencias": 0,
+                "pases": {
+                    "totales": 21,
+                    "precision": "19%"
+                },
+                "defensa": {
+                    "entradas": 0,
+                    "intercepciones": 0,
+                    "despejes": 0
+                },
+                "duelos": {
+                    "totales": 3,
+                    "ganados": 1
+                },
+                "faltas": {
+                    "cometidas": 0,
+                    "recibidas": 1
+                },
+                "tarjetas": {
+                    "amarilla": 0,
+                    "roja": 0
+                }
+            }
+        },
+        {
+            "nombre": "Leonardo Castro",
+            "posicion": "F",
+            "minutos": 100,
+            "calificacion": "7.9",
+            "titular": true,
+            "rendimiento": {
+                "remates_totales": 6,
+                "remates_al_arco": 3,
+                "goles": 1,
+                "asistencias": 0,
+                "pases": {
+                    "totales": 13,
+                    "precision": "11%"
+                },
+                "defensa": {
+                    "entradas": 0,
+                    "intercepciones": 1,
+                    "despejes": 0
+                },
+                "duelos": {
+                    "totales": 7,
+                    "ganados": 6
+                },
+                "faltas": {
+                    "cometidas": 0,
+                    "recibidas": 3
+                },
+                "tarjetas": {
+                    "amarilla": 0,
+                    "roja": 0
+                }
+            }
+        },
+        {
+            "nombre": "Óscar Vanegas",
+            "posicion": "D",
+            "minutos": 35,
+            "calificacion": "6.9",
+            "titular": false,
+            "rendimiento": {
+                "remates_totales": 2,
+                "remates_al_arco": 0,
+                "goles": 0,
+                "asistencias": 0,
+                "pases": {
+                    "totales": 14,
+                    "precision": "9%"
+                },
+                "defensa": {
+                    "entradas": 0,
+                    "intercepciones": 0,
+                    "despejes": 0
+                },
+                "duelos": {
+                    "totales": 1,
+                    "ganados": 1
+                },
+                "faltas": {
+                    "cometidas": 0,
+                    "recibidas": 0
+                },
+                "tarjetas": {
+                    "amarilla": 0,
+                    "roja": 0
+                }
+            }
+        },
+        {
+            "nombre": "Beckham Castro",
+            "posicion": "F",
+            "minutos": 27,
+            "calificacion": "7.5",
+            "titular": false,
+            "rendimiento": {
+                "remates_totales": 2,
+                "remates_al_arco": 1,
+                "goles": 1,
+                "asistencias": 0,
+                "pases": {
+                    "totales": 8,
+                    "precision": "5%"
+                },
+                "defensa": {
+                    "entradas": 0,
+                    "intercepciones": 0,
+                    "despejes": 0
+                },
+                "duelos": {
+                    "totales": 1,
+                    "ganados": 0
+                },
+                "faltas": {
+                    "cometidas": 0,
+                    "recibidas": 0
+                },
+                "tarjetas": {
+                    "amarilla": 0,
+                    "roja": 0
+                }
+            }
+        },
+        {
+            "nombre": "Juan Carvajal",
+            "posicion": "F",
+            "minutos": 14,
+            "calificacion": "7",
+            "titular": false,
+            "rendimiento": {
+                "remates_totales": 0,
+                "remates_al_arco": 0,
+                "goles": 0,
+                "asistencias": 1,
+                "pases": {
+                    "totales": 3,
+                    "precision": "2%"
+                },
+                "defensa": {
+                    "entradas": 0,
+                    "intercepciones": 0,
+                    "despejes": 0
+                },
+                "duelos": {
+                    "totales": 1,
+                    "ganados": 1
+                },
+                "faltas": {
+                    "cometidas": 0,
+                    "recibidas": 0
+                },
+                "tarjetas": {
+                    "amarilla": 0,
+                    "roja": 0
+                }
+            }
+        },
+        {
+            "nombre": "Jorge Arias",
+            "posicion": "D",
+            "minutos": 13,
+            "calificacion": "6.7",
+            "titular": false,
+            "rendimiento": {
+                "remates_totales": 0,
+                "remates_al_arco": 0,
+                "goles": 0,
+                "asistencias": 0,
+                "pases": {
+                    "totales": 3,
+                    "precision": "3%"
+                },
+                "defensa": {
+                    "entradas": 0,
+                    "intercepciones": 0,
+                    "despejes": 0
+                },
+                "duelos": {
+                    "totales": 0,
+                    "ganados": 0
+                },
+                "faltas": {
+                    "cometidas": 0,
+                    "recibidas": 0
+                },
+                "tarjetas": {
+                    "amarilla": 0,
+                    "roja": 0
+                }
+            }
+        },
+        {
+            "nombre": "Neyser Villareal",
+            "posicion": "M",
+            "minutos": 13,
+            "calificacion": "6.5",
+            "titular": false,
+            "rendimiento": {
+                "remates_totales": 1,
+                "remates_al_arco": 0,
+                "goles": 0,
+                "asistencias": 0,
+                "pases": {
+                    "totales": 6,
+                    "precision": "3%"
+                },
+                "defensa": {
+                    "entradas": 0,
+                    "intercepciones": 0,
+                    "despejes": 0
+                },
+                "duelos": {
+                    "totales": 3,
+                    "ganados": 1
+                },
+                "faltas": {
+                    "cometidas": 0,
+                    "recibidas": 0
+                },
+                "tarjetas": {
+                    "amarilla": 0,
+                    "roja": 0
+                }
+            }
+        },
+        {
+            "nombre": "Juan Moreno",
+            "posicion": "G",
+            "minutos": 0,
+            "calificacion": null,
+            "titular": false,
+            "rendimiento": {
+                "remates_totales": 0,
+                "remates_al_arco": 0,
+                "goles": 0,
+                "asistencias": 0,
+                "pases": {
+                    "totales": 0,
+                    "precision": "0%"
+                },
+                "defensa": {
+                    "entradas": 0,
+                    "intercepciones": 0,
+                    "despejes": 0
+                },
+                "duelos": {
+                    "totales": 0,
+                    "ganados": 0
+                },
+                "faltas": {
+                    "cometidas": 0,
+                    "recibidas": 0
+                },
+                "tarjetas": {
+                    "amarilla": 0,
+                    "roja": 0
+                }
+            }
+        },
+        {
+            "nombre": "Fernando Uribe",
+            "posicion": "F",
+            "minutos": 0,
+            "calificacion": null,
+            "titular": false,
+            "rendimiento": {
+                "remates_totales": 0,
+                "remates_al_arco": 0,
+                "goles": 0,
+                "asistencias": 0,
+                "pases": {
+                    "totales": 0,
+                    "precision": "0%"
+                },
+                "defensa": {
+                    "entradas": 0,
+                    "intercepciones": 0,
+                    "despejes": 0
+                },
+                "duelos": {
+                    "totales": 0,
+                    "ganados": 0
+                },
+                "faltas": {
+                    "cometidas": 0,
+                    "recibidas": 0
+                },
+                "tarjetas": {
+                    "amarilla": 0,
+                    "roja": 0
+                }
+            }
+        }
+    ]
+}
