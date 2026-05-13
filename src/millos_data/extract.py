@@ -28,15 +28,28 @@ def search_teams(config: ApiConfig, query: str) -> pd.DataFrame:
                 "founded": team.get("founded"),
             }
         )
-    return pd.DataFrame(rows)
+    dataframe = pd.DataFrame(rows)
+    if dataframe.empty:
+        return dataframe
+
+    dataframe["is_supported_target"] = (
+        (dataframe["team_id"] == config.expected_team_id)
+        & (dataframe["code"].fillna("").str.upper() == config.expected_team_code)
+    )
+    return dataframe.sort_values(
+        by=["is_supported_target", "name"],
+        ascending=[False, True],
+    ).reset_index(drop=True)
 
 
-def download_season_matches(config: ApiConfig, season: int, output_dir: Path) -> dict[str, int]:
+def download_season_matches(config: ApiConfig, season: int, output_dir: Path) -> dict[str, Any]:
     fixtures = fetch_json(
         config,
         "/fixtures",
         params={"team": config.team_id, "season": season, "status": "FT"},
     ).get("response", [])
+
+    fixtures = filter_supported_team_fixtures(config, fixtures)
 
     return _download_fixture_stats(
         config=config,
@@ -54,11 +67,13 @@ def _download_fixture_stats(
 
     downloaded = 0
     skipped = 0
+    already_downloaded_files: list[str] = []
 
     for fixture in fixtures:
         file_path = build_fixture_filename(output_dir, config.team_id, fixture)
         if file_path.exists():
             skipped += 1
+            already_downloaded_files.append(file_path.name)
             continue
 
         file_payload = build_fixture_payload(config, fixture)
@@ -67,13 +82,20 @@ def _download_fixture_stats(
         time.sleep(config.request_delay_seconds)
 
     return {
+        "team_id": config.team_id,
+        "team_code": config.expected_team_code,
+        "team_name": config.expected_team_name,
         "fixtures_found": len(fixtures),
+        "already_downloaded": skipped,
+        "pending_before_download": downloaded,
         "downloaded": downloaded,
         "skipped_existing": skipped,
+        "existing_files_sample": already_downloaded_files[:5],
     }
 
 
 def build_fixture_payload(config: ApiConfig, fixture: dict[str, Any]) -> str:
+    validate_fixture_team(config, fixture)
     fixture_id = fixture["fixture"]["id"]
     stats = fetch_json(
         config,
@@ -154,6 +176,28 @@ def build_fixture_filename(output_dir: Path, team_id: int, fixture: dict[str, An
     rival_name = fixture["teams"]["away"]["name"] if is_home else fixture["teams"]["home"]["name"]
     rival_slug = rival_name.replace(" ", "_")
     return output_dir / f"{date}_{condition}_{rival_slug}.json"
+
+
+def filter_supported_team_fixtures(
+    config: ApiConfig,
+    fixtures: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    filtered: list[dict[str, Any]] = []
+    for fixture in fixtures:
+        home = fixture["teams"]["home"]
+        away = fixture["teams"]["away"]
+        if home["id"] == config.team_id or away["id"] == config.team_id:
+            filtered.append(fixture)
+    return filtered
+
+
+def validate_fixture_team(config: ApiConfig, fixture: dict[str, Any]) -> None:
+    home = fixture["teams"]["home"]
+    away = fixture["teams"]["away"]
+    if home["id"] != config.team_id and away["id"] != config.team_id:
+        raise ValueError(
+            f"Fixture {fixture['fixture']['id']} does not belong to supported team_id={config.team_id}."
+        )
 
 
 def fetch_json(config: ApiConfig, endpoint: str, params: dict[str, Any]) -> dict[str, Any]:

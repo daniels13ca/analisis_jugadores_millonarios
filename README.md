@@ -24,15 +24,27 @@ python -m pip install -r requirements.txt
 
 Si prefieres trabajar sin instalar el paquete, usa `PYTHONPATH=src` en los ejemplos de CLI.
 
+## Git
+
+El archivo `.env` esta ignorado en Git para evitar subir credenciales por accidente.
+
 ## Variables de entorno
 
-Puedes copiar `.env.example` como referencia y definir:
+Puedes usar un archivo `.env` en la raiz del repo.
 
 - `FOOTBALL_API_KEY`: obligatoria para descargas.
 - `MILLONARIOS_TEAM_ID`: opcional, por defecto `1125`.
 - `FOOTBALL_API_DELAY_SECONDS`: opcional, por defecto `1.0`.
 - `FOOTBALL_API_BASE_URL`: opcional.
 - `FOOTBALL_API_HOST`: opcional.
+
+Ejemplo de `.env`:
+
+```dotenv
+FOOTBALL_API_KEY=tu_api_key
+MILLONARIOS_TEAM_ID=1125
+FOOTBALL_API_DELAY_SECONDS=1.0
+```
 
 Ejemplo en PowerShell:
 
@@ -195,6 +207,14 @@ pytest -q
 - El consolidado legacy en `utf-16` se puede leer sin migracion manual.
 - Los nuevos CSV se escriben en `utf-8-sig`.
 - Se agrega `match_id` para tener una clave estable por partido.
+
+## Restriccion del proyecto
+
+- La descarga solo soporta Millonarios FC de Colombia masculino mayor.
+- El `team_id` soportado es `1125`.
+- El codigo esperado del equipo es `MIL`.
+- Si en `.env` se configura otro `MILLONARIOS_TEAM_ID`, el proyecto falla de forma explicita.
+- La descarga informa cuantas fechas encontro, cuantas ya estaban descargadas y cuantas se bajaron en la ejecucion actual.
 
 ## Archivos principales
 
