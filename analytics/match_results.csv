@@ -1,0 +1,201 @@
+﻿match_id,source_file,fecha,campeonato,rival,condicion,resultado,goles_favor,goles_contra,resultado_partido,puntos,tiene_datos_jugadores
+match:2022-01-22:visitante:deportivo_pasto,2022-01-22_Visitante_Deportivo_Pasto.json,2022-01-22,Primera A,Deportivo Pasto,Visitante,0 - 1,1,0,W,3,True
+match:2022-01-26:visitante:bucaramanga,2022-01-26_Visitante_Bucaramanga.json,2022-01-26,Primera A,Bucaramanga,Visitante,0 - 0,0,0,D,1,True
+match:2022-01-30:local:atletico_nacional,2022-01-30_Local_Atletico_Nacional.json,2022-01-30,Primera A,Atletico Nacional,Local,0 - 2,0,2,L,0,True
+match:2022-02-02:visitante:envigado,2022-02-02_Visitante_Envigado.json,2022-02-02,Primera A,Envigado,Visitante,0 - 0,0,0,D,1,True
+match:2022-02-07:local:union_magdalena,2022-02-07_Local_Union_Magdalena.json,2022-02-07,Primera A,Union Magdalena,Local,1 - 0,1,0,W,3,True
+match:2022-02-13:visitante:deportivo_cali,2022-02-13_Visitante_Deportivo_Cali.json,2022-02-13,Primera A,Deportivo Cali,Visitante,0 - 2,2,0,W,3,True
+match:2022-02-17:local:rionegro_aguilas,2022-02-17_Local_Rionegro_Aguilas.json,2022-02-17,Primera A,Rionegro Aguilas,Local,2 - 0,2,0,W,3,True
+match:2022-02-20:visitante:jaguares,2022-02-20_Visitante_Jaguares.json,2022-02-20,Primera A,Jaguares,Visitante,1 - 2,2,1,W,3,True
+match:2022-02-23:local:fluminense,2022-02-23_Local_Fluminense.json,2022-02-23,CONMEBOL Libertadores,Fluminense,Local,1 - 2,1,2,L,0,True
+match:2022-02-27:local:cortulua,2022-02-27_Local_Cortulua.json,2022-02-27,Primera A,Cortulua,Local,1 - 0,1,0,W,3,True
+match:2022-03-02:visitante:fluminense,2022-03-02_Visitante_Fluminense.json,2022-03-02,CONMEBOL Libertadores,Fluminense,Visitante,2 - 0,0,2,L,0,True
+match:2022-03-07:visitante:santa_fe,2022-03-07_Visitante_Santa_Fe.json,2022-03-07,Primera A,Santa Fe,Visitante,0 - 3,3,0,W,3,True
+match:2022-03-19:local:once_caldas,2022-03-19_Local_Once_Caldas.json,2022-03-19,Primera A,Once Caldas,Local,1 - 0,1,0,W,3,True
+match:2022-03-24:visitante:independiente_medellin,2022-03-24_Visitante_Independiente_Medellin.json,2022-03-24,Primera A,Independiente Medellin,Visitante,1 - 0,0,1,L,0,True
+match:2022-03-31:local:junior,2022-03-31_Local_Junior.json,2022-03-31,Primera A,Junior,Local,1 - 0,1,0,W,3,True
+match:2022-04-03:visitante:america_de_cali,2022-04-03_Visitante_America_de_Cali.json,2022-04-03,Primera A,America de Cali,Visitante,3 - 2,2,3,L,0,True
+match:2022-04-09:local:la_equidad,2022-04-09_Local_La_Equidad.json,2022-04-09,Primera A,La Equidad,Local,2 - 1,2,1,W,3,True
+match:2022-04-17:visitante:deportivo_pereira,2022-04-17_Visitante_Deportivo_Pereira.json,2022-04-17,Primera A,Deportivo Pereira,Visitante,1 - 0,0,1,L,0,True
+match:2022-04-22:local:jaguares,2022-04-22_Local_Jaguares.json,2022-04-22,Copa Colombia,Jaguares,Local,3 - 0,3,0,W,3,False
+match:2022-04-25:local:santa_fe,2022-04-25_Local_Santa_Fe.json,2022-04-25,Primera A,Santa Fe,Local,2 - 1,2,1,W,3,True
+match:2022-05-01:visitante:patriotas,2022-05-01_Visitante_Patriotas.json,2022-05-01,Primera A,Patriotas,Visitante,1 - 2,2,1,W,3,True
+match:2022-05-09:local:deportes_tolima,2022-05-09_Local_Deportes_Tolima.json,2022-05-09,Primera A,Deportes Tolima,Local,0 - 0,0,0,D,1,True
+match:2022-05-11:visitante:jaguares,2022-05-11_Visitante_Jaguares.json,2022-05-11,Copa Colombia,Jaguares,Visitante,1 - 1,1,1,D,1,False
+match:2022-05-14:local:alianza_petrolera,2022-05-14_Local_Alianza_Petrolera.json,2022-05-14,Primera A,Alianza Petrolera,Local,1 - 0,1,0,W,3,True
+match:2022-05-22:local:bucaramanga,2022-05-22_Local_Bucaramanga.json,2022-05-22,Primera A,Bucaramanga,Local,1 - 0,1,0,W,3,True
+match:2022-06-01:visitante:atletico_nacional,2022-06-01_Visitante_Atletico_Nacional.json,2022-06-01,Primera A,Atletico Nacional,Visitante,2 - 2,2,2,D,1,True
+match:2022-06-05:visitante:junior,2022-06-05_Visitante_Junior.json,2022-06-05,Primera A,Junior,Visitante,2 - 1,1,2,L,0,True
+match:2022-06-08:local:junior,2022-06-08_Local_Junior.json,2022-06-08,Primera A,Junior,Local,0 - 0,0,0,D,1,True
+match:2022-06-12:local:atletico_nacional,2022-06-12_Local_Atletico_Nacional.json,2022-06-12,Primera A,Atletico Nacional,Local,0 - 0,0,0,D,1,True
+match:2022-06-15:visitante:bucaramanga,2022-06-15_Visitante_Bucaramanga.json,2022-06-15,Primera A,Bucaramanga,Visitante,2 - 1,1,2,L,0,True
+match:2022-07-09:local:deportivo_pasto,2022-07-09_Local_Deportivo_Pasto.json,2022-07-09,Primera A,Deportivo Pasto,Local,1 - 1,1,1,D,1,True
+match:2022-07-13:local:bucaramanga,2022-07-13_Local_Bucaramanga.json,2022-07-13,Primera A,Bucaramanga,Local,0 - 0,0,0,D,1,True
+match:2022-07-16:visitante:atletico_nacional,2022-07-16_Visitante_Atletico_Nacional.json,2022-07-16,Primera A,Atletico Nacional,Visitante,1 - 2,2,1,W,3,True
+match:2022-07-23:local:envigado,2022-07-23_Local_Envigado.json,2022-07-23,Primera A,Envigado,Local,1 - 0,1,0,W,3,True
+match:2022-07-27:local:fortaleza_fc,2022-07-27_Local_Fortaleza_FC.json,2022-07-27,Copa Colombia,Fortaleza FC,Local,3 - 0,3,0,W,3,False
+match:2022-08-01:visitante:union_magdalena,2022-08-01_Visitante_Union_Magdalena.json,2022-08-01,Primera A,Union Magdalena,Visitante,0 - 2,2,0,W,3,True
+match:2022-08-07:local:deportivo_cali,2022-08-07_Local_Deportivo_Cali.json,2022-08-07,Primera A,Deportivo Cali,Local,4 - 2,4,2,W,3,True
+match:2022-08-14:visitante:rionegro_aguilas,2022-08-14_Visitante_Rionegro_Aguilas.json,2022-08-14,Primera A,Rionegro Aguilas,Visitante,0 - 0,0,0,D,1,True
+match:2022-08-18:visitante:fortaleza_fc,2022-08-18_Visitante_Fortaleza_FC.json,2022-08-18,Copa Colombia,Fortaleza FC,Visitante,2 - 3,3,2,W,3,False
+match:2022-08-21:local:jaguares,2022-08-21_Local_Jaguares.json,2022-08-21,Primera A,Jaguares,Local,2 - 0,2,0,W,3,True
+match:2022-08-25:visitante:independiente_medellin,2022-08-25_Visitante_Independiente_Medellin.json,2022-08-25,Copa Colombia,Independiente Medellin,Visitante,0 - 2,2,0,W,3,False
+match:2022-08-28:visitante:cortulua,2022-08-28_Visitante_Cortulua.json,2022-08-28,Primera A,Cortulua,Visitante,1 - 4,4,1,W,3,True
+match:2022-09-04:local:santa_fe,2022-09-04_Local_Santa_Fe.json,2022-09-04,Primera A,Santa Fe,Local,2 - 0,2,0,W,3,True
+match:2022-09-08:local:independiente_medellin,2022-09-08_Local_Independiente_Medellin.json,2022-09-08,Copa Colombia,Independiente Medellin,Local,2 - 2,2,2,D,1,False
+match:2022-09-11:visitante:once_caldas,2022-09-11_Visitante_Once_Caldas.json,2022-09-11,Primera A,Once Caldas,Visitante,2 - 1,1,2,L,0,True
+match:2022-09-22:visitante:junior,2022-09-22_Visitante_Junior.json,2022-09-22,Primera A,Junior,Visitante,0 - 1,1,0,W,3,True
+match:2022-09-24:local:america_de_cali,2022-09-24_Local_America_de_Cali.json,2022-09-24,Primera A,America de Cali,Local,2 - 2,2,2,D,1,True
+match:2022-09-29:visitante:junior,2022-09-29_Visitante_Junior.json,2022-09-29,Copa Colombia,Junior,Visitante,1 - 0,0,1,L,0,False
+match:2022-10-02:visitante:la_equidad,2022-10-02_Visitante_La_Equidad.json,2022-10-02,Primera A,La Equidad,Visitante,1 - 0,0,1,L,0,True
+match:2022-10-06:visitante:santa_fe,2022-10-06_Visitante_Santa_Fe.json,2022-10-06,Primera A,Santa Fe,Visitante,3 - 2,2,3,L,0,True
+match:2022-10-17:local:patriotas,2022-10-17_Local_Patriotas.json,2022-10-17,Primera A,Patriotas,Local,0 - 0,0,0,D,1,True
+match:2022-10-19:local:deportivo_pereira,2022-10-19_Local_Deportivo_Pereira.json,2022-10-19,Primera A,Deportivo Pereira,Local,0 - 1,0,1,L,0,True
+match:2022-10-23:visitante:deportes_tolima,2022-10-23_Visitante_Deportes_Tolima.json,2022-10-23,Primera A,Deportes Tolima,Visitante,1 - 0,0,1,L,0,True
+match:2022-10-27:local:independiente_medellin,2022-10-27_Local_Independiente_Medellin.json,2022-10-27,Primera A,Independiente Medellin,Local,1 - 2,1,2,L,0,True
+match:2022-10-30:visitante:alianza_petrolera,2022-10-30_Visitante_Alianza_Petrolera.json,2022-10-30,Primera A,Alianza Petrolera,Visitante,2 - 4,4,2,W,3,True
+match:2022-11-03:local:junior,2022-11-03_Local_Junior.json,2022-11-03,Copa Colombia,Junior,Local,2 - 0,2,0,W,3,False
+match:2022-11-06:local:santa_fe,2022-11-06_Local_Santa_Fe.json,2022-11-06,Primera A,Santa Fe,Local,1 - 1,1,1,D,1,True
+match:2022-11-10:visitante:junior,2022-11-10_Visitante_Junior.json,2022-11-10,Primera A,Junior,Visitante,0 - 1,1,0,W,3,False
+match:2022-11-14:local:deportivo_pereira,2022-11-14_Local_Deportivo_Pereira.json,2022-11-14,Primera A,Deportivo Pereira,Local,2 - 0,2,0,W,3,False
+match:2022-11-24:visitante:deportivo_pereira,2022-11-24_Visitante_Deportivo_Pereira.json,2022-11-24,Primera A,Deportivo Pereira,Visitante,2 - 1,1,2,L,0,False
+match:2022-11-27:local:junior,2022-11-27_Local_Junior.json,2022-11-27,Primera A,Junior,Local,1 - 0,1,0,W,3,False
+match:2022-12-01:visitante:santa_fe,2022-12-01_Visitante_Santa_Fe.json,2022-12-01,Primera A,Santa Fe,Visitante,1 - 1,1,1,D,1,False
+match:2023-01-12:visitante:hertha_berlin,2023-01-12_Visitante_Hertha_Berlin.json,2023-01-12,Friendlies Clubs,Hertha Berlin,Visitante,2 - 2,2,2,D,1,False
+match:2023-01-15:visitante:river_plate,2023-01-15_Visitante_River_Plate.json,2023-01-15,Friendlies Clubs,River Plate,Visitante,2 - 0,0,2,L,0,False
+match:2023-01-22:local:ldu_de_quito,2023-01-22_Local_LDU_de_Quito.json,2023-01-22,Friendlies Clubs,LDU de Quito,Local,0 - 0,0,0,D,1,False
+match:2023-01-29:visitante:deportivo_pereira,2023-01-29_Visitante_Deportivo_Pereira.json,2023-01-29,Primera A,Deportivo Pereira,Visitante,2 - 3,3,2,W,3,True
+match:2023-02-19:local:jaguares,2023-02-19_Local_Jaguares.json,2023-02-19,Primera A,Jaguares,Local,2 - 1,2,1,W,3,True
+match:2023-02-24:visitante:universidad_catolica,2023-02-24_Visitante_Universidad_Catolica.json,2023-02-24,CONMEBOL Libertadores,Universidad Catolica,Visitante,0 - 0,0,0,D,1,True
+match:2023-02-26:visitante:once_caldas,2023-02-26_Visitante_Once_Caldas.json,2023-02-26,Primera A,Once Caldas,Visitante,1 - 0,0,1,L,0,True
+match:2023-03-03:local:universidad_catolica,2023-03-03_Local_Universidad_Catolica.json,2023-03-03,CONMEBOL Libertadores,Universidad Catolica,Local,2 - 1,2,1,W,3,True
+match:2023-03-05:local:deportivo_cali,2023-03-05_Local_Deportivo_Cali.json,2023-03-05,Primera A,Deportivo Cali,Local,2 - 0,2,0,W,3,True
+match:2023-03-09:local:atletico-mg,2023-03-09_Local_Atletico-MG.json,2023-03-09,CONMEBOL Libertadores,Atletico-MG,Local,1 - 1,1,1,D,1,True
+match:2023-03-12:visitante:atletico_nacional,2023-03-12_Visitante_Atletico_Nacional.json,2023-03-12,Primera A,Atletico Nacional,Visitante,0 - 0,0,0,D,1,True
+match:2023-03-16:visitante:atletico-mg,2023-03-16_Visitante_Atletico-MG.json,2023-03-16,CONMEBOL Libertadores,Atletico-MG,Visitante,3 - 1,1,3,L,0,True
+match:2023-03-19:local:rionegro_aguilas,2023-03-19_Local_Rionegro_Aguilas.json,2023-03-19,Primera A,Rionegro Aguilas,Local,2 - 2,2,2,D,1,True
+match:2023-03-23:local:deportivo_pasto,2023-03-23_Local_Deportivo_Pasto.json,2023-03-23,Primera A,Deportivo Pasto,Local,2 - 0,2,0,W,3,True
+match:2023-03-27:visitante:santa_fe,2023-03-27_Visitante_Santa_Fe.json,2023-03-27,Primera A,Santa Fe,Visitante,1 - 2,2,1,W,3,True
+match:2023-03-30:visitante:deportes_tolima,2023-03-30_Visitante_Deportes_Tolima.json,2023-03-30,Primera A,Deportes Tolima,Visitante,1 - 1,1,1,D,1,True
+match:2023-04-02:visitante:bucaramanga,2023-04-02_Visitante_Bucaramanga.json,2023-04-02,Primera A,Bucaramanga,Visitante,0 - 2,2,0,W,3,True
+match:2023-04-05:local:defensa_y_justicia,2023-04-05_Local_Defensa_Y_Justicia.json,2023-04-05,CONMEBOL Sudamericana,Defensa Y Justicia,Local,3 - 0,3,0,W,3,True
+match:2023-04-09:local:independiente_medellin,2023-04-09_Local_Independiente_Medellin.json,2023-04-09,Primera A,Independiente Medellin,Local,2 - 1,2,1,W,3,True
+match:2023-04-12:visitante:huila,2023-04-12_Visitante_Huila.json,2023-04-12,Primera A,Huila,Visitante,1 - 1,1,1,D,1,True
+match:2023-04-20:visitante:penarol,2023-04-20_Visitante_Penarol.json,2023-04-20,CONMEBOL Sudamericana,Penarol,Visitante,0 - 2,2,0,W,3,True
+match:2023-04-24:visitante:union_magdalena,2023-04-24_Visitante_Union_Magdalena.json,2023-04-24,Primera A,Union Magdalena,Visitante,1 - 1,1,1,D,1,True
+match:2023-04-28:local:america_de_cali,2023-04-28_Local_America_de_Cali.json,2023-04-28,Primera A,America de Cali,Local,4 - 3,4,3,W,3,True
+match:2023-04-30:visitante:junior,2023-04-30_Visitante_Junior.json,2023-04-30,Primera A,Junior,Visitante,1 - 0,0,1,L,0,True
+match:2023-05-04:local:america_mineiro,2023-05-04_Local_America_Mineiro.json,2023-05-04,CONMEBOL Sudamericana,America Mineiro,Local,1 - 1,1,1,D,1,True
+match:2023-05-04:local:envigado,2023-05-04_Local_Envigado.json,2023-05-04,Primera A,Envigado,Local,1 - 1,1,1,D,1,True
+match:2023-05-08:local:santa_fe,2023-05-08_Local_Santa_Fe.json,2023-05-08,Primera A,Santa Fe,Local,1 - 0,1,0,W,3,True
+match:2023-05-11:local:alianza_petrolera,2023-05-11_Local_Alianza_Petrolera.json,2023-05-11,Primera A,Alianza Petrolera,Local,3 - 1,3,1,W,3,True
+match:2023-05-14:visitante:chico,2023-05-14_Visitante_Chico.json,2023-05-14,Primera A,Chico,Visitante,1 - 1,1,1,D,1,True
+match:2023-05-18:local:la_equidad,2023-05-18_Local_La_Equidad.json,2023-05-18,Primera A,La Equidad,Local,0 - 0,0,0,D,1,True
+match:2023-05-21:visitante:independiente_medellin,2023-05-21_Visitante_Independiente_Medellin.json,2023-05-21,Primera A,Independiente Medellin,Visitante,2 - 2,2,2,D,1,True
+match:2023-05-24:local:penarol,2023-05-24_Local_Penarol.json,2023-05-24,CONMEBOL Sudamericana,Penarol,Local,3 - 1,3,1,W,3,True
+match:2023-05-28:local:chico,2023-05-28_Local_Chico.json,2023-05-28,Primera A,Chico,Local,1 - 0,1,0,W,3,True
+match:2023-06-01:visitante:america_de_cali,2023-06-01_Visitante_America_de_Cali.json,2023-06-01,Primera A,America de Cali,Visitante,0 - 1,1,0,W,3,True
+match:2023-06-04:local:america_de_cali,2023-06-04_Local_America_de_Cali.json,2023-06-04,Primera A,America de Cali,Local,2 - 1,2,1,W,3,True
+match:2023-06-07:visitante:america_mineiro,2023-06-07_Visitante_America_Mineiro.json,2023-06-07,CONMEBOL Sudamericana,America Mineiro,Visitante,2 - 0,0,2,L,0,True
+match:2023-06-11:visitante:chico,2023-06-11_Visitante_Chico.json,2023-06-11,Primera A,Chico,Visitante,2 - 1,1,2,L,0,True
+match:2023-06-17:local:independiente_medellin,2023-06-17_Local_Independiente_Medellin.json,2023-06-17,Primera A,Independiente Medellin,Local,2 - 1,2,1,W,3,True
+match:2023-06-22:visitante:atletico_nacional,2023-06-22_Visitante_Atletico_Nacional.json,2023-06-22,Primera A,Atletico Nacional,Visitante,0 - 0,0,0,D,1,True
+match:2023-06-30:visitante:defensa_y_justicia,2023-06-30_Visitante_Defensa_Y_Justicia.json,2023-06-30,CONMEBOL Sudamericana,Defensa Y Justicia,Visitante,3 - 1,1,3,L,0,True
+match:2023-07-08:local:atletico_nacional,2023-07-08_Local_Atletico_Nacional.json,2023-07-08,Friendlies Clubs,Atletico Nacional,Local,1 - 0,1,0,W,3,False
+match:2023-07-16:visitante:deportivo_pasto,2023-07-16_Visitante_Deportivo_Pasto.json,2023-07-16,Primera A,Deportivo Pasto,Visitante,0 - 0,0,0,D,1,True
+match:2023-07-23:local:deportivo_pereira,2023-07-23_Local_Deportivo_Pereira.json,2023-07-23,Primera A,Deportivo Pereira,Local,0 - 0,0,0,D,1,True
+match:2023-07-27:visitante:crystal_palace,2023-07-27_Visitante_Crystal_Palace.json,2023-07-27,Friendlies Clubs,Crystal Palace,Visitante,1 - 2,2,1,W,3,False
+match:2023-07-29:visitante:alianza_petrolera,2023-07-29_Visitante_Alianza_Petrolera.json,2023-07-29,Primera A,Alianza Petrolera,Visitante,1 - 0,0,1,L,0,True
+match:2023-08-03:visitante:zaragoza,2023-08-03_Visitante_Zaragoza.json,2023-08-03,Friendlies Clubs,Zaragoza,Visitante,1 - 2,2,1,W,3,False
+match:2023-08-08:local:deportes_tolima,2023-08-08_Local_Deportes_Tolima.json,2023-08-08,Primera A,Deportes Tolima,Local,1 - 0,1,0,W,3,True
+match:2023-08-11:local:bucaramanga,2023-08-11_Local_Bucaramanga.json,2023-08-11,Copa Colombia,Bucaramanga,Local,3 - 1,3,1,W,3,False
+match:2023-08-13:visitante:jaguares,2023-08-13_Visitante_Jaguares.json,2023-08-13,Primera A,Jaguares,Visitante,2 - 0,0,2,L,0,True
+match:2023-08-17:visitante:bucaramanga,2023-08-17_Visitante_Bucaramanga.json,2023-08-17,Copa Colombia,Bucaramanga,Visitante,0 - 0,0,0,D,1,False
+match:2023-08-22:local:once_caldas,2023-08-22_Local_Once_Caldas.json,2023-08-22,Primera A,Once Caldas,Local,2 - 1,2,1,W,3,True
+match:2023-08-25:visitante:deportivo_cali,2023-08-25_Visitante_Deportivo_Cali.json,2023-08-25,Primera A,Deportivo Cali,Visitante,0 - 0,0,0,D,1,True
+match:2023-08-27:local:atletico_nacional,2023-08-27_Local_Atletico_Nacional.json,2023-08-27,Primera A,Atletico Nacional,Local,1 - 0,1,0,W,3,True
+match:2023-09-03:visitante:rionegro_aguilas,2023-09-03_Visitante_Rionegro_Aguilas.json,2023-09-03,Primera A,Rionegro Aguilas,Visitante,2 - 0,0,2,L,0,True
+match:2023-09-11:local:santa_fe,2023-09-11_Local_Santa_Fe.json,2023-09-11,Primera A,Santa Fe,Local,2 - 4,2,4,L,0,True
+match:2023-09-16:local:bucaramanga,2023-09-16_Local_Bucaramanga.json,2023-09-16,Primera A,Bucaramanga,Local,3 - 0,3,0,W,3,True
+match:2023-09-19:visitante:independiente_medellin,2023-09-19_Visitante_Independiente_Medellin.json,2023-09-19,Primera A,Independiente Medellin,Visitante,1 - 1,1,1,D,1,True
+match:2023-09-22:local:huila,2023-09-22_Local_Huila.json,2023-09-22,Primera A,Huila,Local,2 - 1,2,1,W,3,True
+match:2023-09-25:visitante:envigado,2023-09-25_Visitante_Envigado.json,2023-09-25,Primera A,Envigado,Visitante,1 - 2,2,1,W,3,True
+match:2023-09-29:local:alianza_petrolera,2023-09-29_Local_Alianza_Petrolera.json,2023-09-29,Copa Colombia,Alianza Petrolera,Local,2 - 0,2,0,W,3,False
+match:2023-10-06:visitante:alianza_petrolera,2023-10-06_Visitante_Alianza_Petrolera.json,2023-10-06,Copa Colombia,Alianza Petrolera,Visitante,1 - 2,2,1,W,3,False
+match:2023-10-15:local:junior,2023-10-15_Local_Junior.json,2023-10-15,Primera A,Junior,Local,1 - 0,1,0,W,3,True
+match:2023-10-19:local:union_magdalena,2023-10-19_Local_Union_Magdalena.json,2023-10-19,Primera A,Union Magdalena,Local,1 - 1,1,1,D,1,True
+match:2023-10-21:visitante:santa_fe,2023-10-21_Visitante_Santa_Fe.json,2023-10-21,Primera A,Santa Fe,Visitante,2 - 3,3,2,W,3,True
+match:2023-10-26:local:chico,2023-10-26_Local_Chico.json,2023-10-26,Primera A,Chico,Local,1 - 1,1,1,D,1,True
+match:2023-10-31:visitante:america_de_cali,2023-10-31_Visitante_America_de_Cali.json,2023-10-31,Primera A,America de Cali,Visitante,1 - 0,0,1,L,0,True
+match:2023-11-03:local:cucuta,2023-11-03_Local_Cucuta.json,2023-11-03,Copa Colombia,Cucuta,Local,1 - 0,1,0,W,3,False
+match:2023-11-05:visitante:cucuta,2023-11-05_Visitante_Cucuta.json,2023-11-05,Copa Colombia,Cucuta,Visitante,1 - 1,1,1,D,1,False
+match:2023-11-09:visitante:la_equidad,2023-11-09_Visitante_La_Equidad.json,2023-11-09,Primera A,La Equidad,Visitante,2 - 1,1,2,L,0,True
+match:2023-11-12:visitante:atletico_nacional,2023-11-12_Visitante_Atletico_Nacional.json,2023-11-12,Primera A,Atletico Nacional,Visitante,0 - 1,1,0,W,3,True
+match:2023-11-16:local:atletico_nacional,2023-11-16_Local_Atletico_Nacional.json,2023-11-16,Copa Colombia,Atletico Nacional,Local,1 - 1,1,1,D,1,False
+match:2023-11-19:local:america_de_cali,2023-11-19_Local_America_de_Cali.json,2023-11-19,Primera A,America de Cali,Local,2 - 1,2,1,W,3,True
+match:2023-11-24:visitante:atletico_nacional,2023-11-24_Visitante_Atletico_Nacional.json,2023-11-24,Copa Colombia,Atletico Nacional,Visitante,1 - 1,1,1,D,1,False
+match:2023-11-26:local:independiente_medellin,2023-11-26_Local_Independiente_Medellin.json,2023-11-26,Primera A,Independiente Medellin,Local,1 - 0,1,0,W,3,True
+match:2023-12-01:visitante:independiente_medellin,2023-12-01_Visitante_Independiente_Medellin.json,2023-12-01,Primera A,Independiente Medellin,Visitante,2 - 1,1,2,L,0,True
+match:2023-12-04:visitante:america_de_cali,2023-12-04_Visitante_America_de_Cali.json,2023-12-04,Primera A,America de Cali,Visitante,1 - 0,0,1,L,0,True
+match:2023-12-06:local:atletico_nacional,2023-12-06_Local_Atletico_Nacional.json,2023-12-06,Primera A,Atletico Nacional,Local,0 - 1,0,1,L,0,True
+match:2024-01-19:visitante:junior,2024-01-19_Visitante_Junior.json,2024-01-19,Superliga,Junior,Visitante,1 - 0,0,1,L,0,False
+match:2024-01-21:local:independiente_medellin,2024-01-21_Local_Independiente_Medellin.json,2024-01-21,Primera A,Independiente Medellin,Local,5 - 0,5,0,W,3,True
+match:2024-01-25:local:junior,2024-01-25_Local_Junior.json,2024-01-25,Superliga,Junior,Local,2 - 0,2,0,W,3,False
+match:2024-01-29:visitante:bucaramanga,2024-01-29_Visitante_Bucaramanga.json,2024-01-29,Primera A,Bucaramanga,Visitante,0 - 0,0,0,D,1,True
+fixture:1153086,2024-01-31_Local_Alianza_Valledupar.json,2024-01-31,Primera A,Alianza Valledupar,Local,1 - 1,1,1,D,1,False
+match:2024-02-03:visitante:deportes_tolima,2024-02-03_Visitante_Deportes_Tolima.json,2024-02-03,Primera A,Deportes Tolima,Visitante,2 - 0,0,2,L,0,True
+match:2024-02-08:local:america_de_cali,2024-02-08_Local_America_de_Cali.json,2024-02-08,Primera A,America de Cali,Local,1 - 0,1,0,W,3,True
+match:2024-02-11:visitante:atletico_nacional,2024-02-11_Visitante_Atletico_Nacional.json,2024-02-11,Primera A,Atletico Nacional,Visitante,0 - 1,1,0,W,3,True
+fixture:1153126,2024-02-16_Local_Águilas_Doradas.json,2024-02-16,Primera A,Águilas Doradas,Local,0 - 1,0,1,L,0,True
+match:2024-02-25:visitante:patriotas,2024-02-25_Visitante_Patriotas.json,2024-02-25,Primera A,Patriotas,Visitante,1 - 0,0,1,L,0,True
+match:2024-02-28:local:once_caldas,2024-02-28_Local_Once_Caldas.json,2024-02-28,Primera A,Once Caldas,Local,0 - 2,0,2,L,0,True
+fixture:1153156,2024-03-02_Local_Internacional_de_Bogota.json,2024-03-02,Primera A,Internacional de Bogota,Local,1 - 2,1,2,L,0,True
+match:2024-03-11:visitante:jaguares,2024-03-11_Visitante_Jaguares.json,2024-03-11,Primera A,Jaguares,Visitante,2 - 1,1,2,L,0,True
+match:2024-03-17:visitante:envigado,2024-03-17_Visitante_Envigado.json,2024-03-17,Primera A,Envigado,Visitante,1 - 1,1,1,D,1,True
+match:2024-03-23:local:deportivo_cali,2024-03-23_Local_Deportivo_Cali.json,2024-03-23,Primera A,Deportivo Cali,Local,1 - 1,1,1,D,1,True
+match:2024-03-28:local:santa_fe,2024-03-28_Local_Santa_Fe.json,2024-03-28,Primera A,Santa Fe,Local,3 - 1,3,1,W,3,True
+match:2024-03-31:visitante:fortaleza_fc,2024-03-31_Visitante_Fortaleza_FC.json,2024-03-31,Primera A,Fortaleza FC,Visitante,1 - 2,2,1,W,3,True
+match:2024-04-02:local:flamengo,2024-04-02_Local_Flamengo.json,2024-04-02,CONMEBOL Libertadores,Flamengo,Local,1 - 1,1,1,D,1,True
+match:2024-04-11:visitante:bolívar,2024-04-11_Visitante_Bolívar.json,2024-04-11,CONMEBOL Libertadores,Bolívar,Visitante,3 - 2,2,3,L,0,True
+match:2024-04-15:visitante:deportivo_pasto,2024-04-15_Visitante_Deportivo_Pasto.json,2024-04-15,Primera A,Deportivo Pasto,Visitante,2 - 3,3,2,W,3,True
+match:2024-04-17:local:junior,2024-04-17_Local_Junior.json,2024-04-17,Primera A,Junior,Local,3 - 2,3,2,W,3,True
+match:2024-04-20:visitante:deportivo_pereira,2024-04-20_Visitante_Deportivo_Pereira.json,2024-04-20,Primera A,Deportivo Pereira,Visitante,1 - 2,2,1,W,3,True
+match:2024-04-26:visitante:palestino,2024-04-26_Visitante_Palestino.json,2024-04-26,CONMEBOL Libertadores,Palestino,Visitante,3 - 1,1,3,L,0,True
+match:2024-04-28:local:chico,2024-04-28_Local_Chico.json,2024-04-28,Primera A,Chico,Local,3 - 0,3,0,W,3,True
+match:2024-05-05:visitante:junior,2024-05-05_Visitante_Junior.json,2024-05-05,Primera A,Junior,Visitante,2 - 1,1,2,L,0,True
+match:2024-05-09:local:bolívar,2024-05-09_Local_Bolívar.json,2024-05-09,CONMEBOL Libertadores,Bolívar,Local,1 - 1,1,1,D,1,True
+match:2024-05-12:local:deportivo_pereira,2024-05-12_Local_Deportivo_Pereira.json,2024-05-12,Primera A,Deportivo Pereira,Local,1 - 0,1,0,W,3,True
+match:2024-05-15:local:palestino,2024-05-15_Local_Palestino.json,2024-05-15,CONMEBOL Libertadores,Palestino,Local,1 - 1,1,1,D,1,True
+match:2024-05-20:local:bucaramanga,2024-05-20_Local_Bucaramanga.json,2024-05-20,Primera A,Bucaramanga,Local,0 - 1,0,1,L,0,True
+match:2024-05-22:visitante:bucaramanga,2024-05-22_Visitante_Bucaramanga.json,2024-05-22,Primera A,Bucaramanga,Visitante,0 - 0,0,0,D,1,True
+match:2024-05-25:visitante:deportivo_pereira,2024-05-25_Visitante_Deportivo_Pereira.json,2024-05-25,Primera A,Deportivo Pereira,Visitante,2 - 2,2,2,D,1,True
+match:2024-05-29:visitante:flamengo,2024-05-29_Visitante_Flamengo.json,2024-05-29,CONMEBOL Libertadores,Flamengo,Visitante,3 - 0,0,3,L,0,True
+match:2024-06-02:local:junior,2024-06-02_Local_Junior.json,2024-06-02,Primera A,Junior,Local,2 - 0,2,0,W,3,True
+match:2024-07-09:visitante:river_plate,2024-07-09_Visitante_River_Plate.json,2024-07-09,Friendlies Clubs,River Plate,Visitante,1 - 1,1,1,D,1,True
+match:2024-07-19:visitante:independiente_medellin,2024-07-19_Visitante_Independiente_Medellin.json,2024-07-19,Primera A,Independiente Medellin,Visitante,1 - 1,1,1,D,1,True
+match:2024-07-21:local:bucaramanga,2024-07-21_Local_Bucaramanga.json,2024-07-21,Primera A,Bucaramanga,Local,1 - 0,1,0,W,3,True
+match:2024-07-25:local:atletico_nacional,2024-07-25_Local_Atletico_Nacional.json,2024-07-25,Primera A,Atletico Nacional,Local,1 - 2,1,2,L,0,True
+fixture:1234169,2024-07-28_Visitante_Alianza_Valledupar.json,2024-07-28,Primera A,Alianza Valledupar,Visitante,2 - 1,1,2,L,0,True
+match:2024-08-03:local:deportes_tolima,2024-08-03_Local_Deportes_Tolima.json,2024-08-03,Primera A,Deportes Tolima,Local,1 - 0,1,0,W,3,True
+fixture:1234208,2024-08-25_Visitante_Águilas_Doradas.json,2024-08-25,Primera A,Águilas Doradas,Visitante,2 - 1,1,2,L,0,True
+match:2024-09-01:local:patriotas,2024-09-01_Local_Patriotas.json,2024-09-01,Primera A,Patriotas,Local,3 - 0,3,0,W,3,True
+match:2024-09-08:visitante:once_caldas,2024-09-08_Visitante_Once_Caldas.json,2024-09-08,Primera A,Once Caldas,Visitante,1 - 1,1,1,D,1,True
+fixture:1234238,2024-09-16_Visitante_Internacional_de_Bogota.json,2024-09-16,Primera A,Internacional de Bogota,Visitante,1 - 3,3,1,W,3,True
+match:2024-09-26:local:jaguares,2024-09-26_Local_Jaguares.json,2024-09-26,Primera A,Jaguares,Local,0 - 0,0,0,D,1,True
+match:2024-09-29:local:envigado,2024-09-29_Local_Envigado.json,2024-09-29,Primera A,Envigado,Local,3 - 0,3,0,W,3,True
+match:2024-10-02:local:bucaramanga,2024-10-02_Local_Bucaramanga.json,2024-10-02,Copa Colombia,Bucaramanga,Local,0 - 0,0,0,D,1,False
+match:2024-10-05:visitante:deportivo_cali,2024-10-05_Visitante_Deportivo_Cali.json,2024-10-05,Primera A,Deportivo Cali,Visitante,0 - 1,1,0,W,3,True
+match:2024-10-09:visitante:bucaramanga,2024-10-09_Visitante_Bucaramanga.json,2024-10-09,Copa Colombia,Bucaramanga,Visitante,1 - 1,1,1,D,1,False
+match:2024-10-12:visitante:america_de_cali,2024-10-12_Visitante_America_de_Cali.json,2024-10-12,Primera A,America de Cali,Visitante,2 - 1,1,2,L,0,True
+match:2024-10-17:local:fortaleza_fc,2024-10-17_Local_Fortaleza_FC.json,2024-10-17,Primera A,Fortaleza FC,Local,2 - 1,2,1,W,3,True
+match:2024-10-27:visitante:santa_fe,2024-10-27_Visitante_Santa_Fe.json,2024-10-27,Primera A,Santa Fe,Visitante,0 - 1,1,0,W,3,True
+match:2024-11-04:local:deportivo_pasto,2024-11-04_Local_Deportivo_Pasto.json,2024-11-04,Primera A,Deportivo Pasto,Local,1 - 0,1,0,W,3,True
+match:2024-11-07:visitante:junior,2024-11-07_Visitante_Junior.json,2024-11-07,Primera A,Junior,Visitante,0 - 0,0,0,D,1,True
+match:2024-11-11:local:deportivo_pereira,2024-11-11_Local_Deportivo_Pereira.json,2024-11-11,Primera A,Deportivo Pereira,Local,0 - 0,0,0,D,1,True
+match:2024-11-15:visitante:chico,2024-11-15_Visitante_Chico.json,2024-11-15,Primera A,Chico,Visitante,1 - 5,5,1,W,3,True
+match:2024-11-20:local:deportivo_pasto,2024-11-20_Local_Deportivo_Pasto.json,2024-11-20,Primera A,Deportivo Pasto,Local,2 - 1,2,1,W,3,True
+match:2024-11-27:visitante:santa_fe,2024-11-27_Visitante_Santa_Fe.json,2024-11-27,Primera A,Santa Fe,Visitante,0 - 1,1,0,W,3,True
+match:2024-11-30:local:atletico_nacional,2024-11-30_Local_Atletico_Nacional.json,2024-11-30,Primera A,Atletico Nacional,Local,2 - 1,2,1,W,3,True
+match:2024-12-03:visitante:atletico_nacional,2024-12-03_Visitante_Atletico_Nacional.json,2024-12-03,Primera A,Atletico Nacional,Visitante,1 - 1,1,1,D,1,True
+match:2024-12-06:local:santa_fe,2024-12-06_Local_Santa_Fe.json,2024-12-06,Primera A,Santa Fe,Local,1 - 1,1,1,D,1,True
+match:2024-12-09:visitante:deportivo_pasto,2024-12-09_Visitante_Deportivo_Pasto.json,2024-12-09,Primera A,Deportivo Pasto,Visitante,0 - 0,0,0,D,1,True

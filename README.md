@@ -1,7 +1,35 @@
 # Analisis Jugadores Millonarios
 
 Paquete Python para descargar, transformar y consolidar estadisticas de jugadores de
-Millonarios FC a partir de la API de API-Football.
+Millonarios FC a partir de la API de API-Football, y un dashboard (Streamlit + DuckDB + Plotly)
+para analizar el rendimiento del equipo y de los jugadores.
+
+## Guia rapida
+
+Los dos flujos mas comunes: bajar datos nuevos de una temporada, y abrir el dashboard.
+
+```powershell
+# 1. Instalar (incluye lo necesario para ETL, tests y dashboard)
+python -m pip install -e ".[dev]"
+
+# 2. Configurar la API key (una vez) -- ver "Variables de entorno" mas abajo
+#    Opcion A: archivo .env en la raiz del repo con FOOTBALL_API_KEY=tu_api_key
+#    Opcion B: variable de entorno
+$env:FOOTBALL_API_KEY="tu_api_key"
+
+# 3. Descargar una temporada
+python -m millos_data download-season --season 2025
+
+# 4. Refrescar el CSV consolidado + las tablas de analitica + validarlas, todo de una
+python -m millos_data refresh --base-path .
+
+# 5. Abrir el dashboard
+python -m millos_data dashboard
+```
+
+El paso 5 abre `http://localhost:8501` en el navegador. Si ya tenias el repo clonado con datos
+existentes, podes saltar directo al paso 5 (las tablas de `analytics/` ya estan generadas); corre
+el paso 4 despues de cada descarga nueva. Detalle de cada comando en las secciones de abajo.
 
 ## Estructura
 
@@ -17,12 +45,28 @@ Millonarios FC a partir de la API de API-Football.
   - `consolidate.py`: descubre los JSON de todas las temporadas y arma el CSV consolidado.
   - `dedupe.py`: detecta partidos duplicados (p. ej. por un cambio de nombre de rival en la API)
     y los archiva sin borrarlos.
-  - `cli.py`: comandos `consolidate`, `download-season` y `dedupe-matches`.
+  - `analytics.py`: capa de analitica — tablas listas para dashboard (resultados de equipo,
+    features por jugador-partido, resumen por temporada), incluye la canonicalizacion de nombres
+    de jugador con variantes de escritura (tildes). Ver
+    [docs/analytics_kpis.md](docs/analytics_kpis.md) para el catalogo de preguntas/metricas.
+  - `validate.py`: sanity checks sobre las tablas de analitica (partidos duplicados, stats
+    negativos, reconciliacion de goles equipo vs. jugadores, variantes de nombre) — ver
+    [Validacion de datos](#validacion-de-datos).
+  - `dashboard/`: dashboard Streamlit + DuckDB + Plotly. `data.py` es la capa de queries (DuckDB,
+    testeable sin Streamlit); `app.py` es la UI. Ver [Dashboard](#dashboard).
+  - `pipeline.py`: orquesta consolidate + build-analytics + validate-analytics en un solo paso
+    (`refresh`) — ver [Refrescar todo de una](#refrescar-todo-de-una).
+  - `cli.py`: comandos `consolidate`, `download-season`, `dedupe-matches`, `build-analytics`,
+    `validate-analytics`, `refresh` y `dashboard`.
 - `tests/`: pruebas unitarias, con un factory compartido en `conftest.py` para construir JSON de
   partidos de prueba.
+- `docs/analytics_kpis.md`: catalogo de preguntas de negocio y de que tabla/columna sale cada
+  metrica (el contrato entre la capa de datos y el futuro dashboard).
 - `Millonarios_*_Stats_Detalladas/`: datos JSON historicos por temporada.
 - `_archived_duplicates/`: partidos duplicados que `dedupe-matches --apply` movio aqui (nunca se
   borran, solo se sacan del set activo).
+- `analytics/`: tablas derivadas que genera `build-analytics` (`match_results.csv`,
+  `player_match_features.csv`, `player_season_summary.csv`), listas para leer desde un dashboard.
 - `Descargar_temporada.ipynb`: notebook de apoyo para buscar equipos y descargar datos.
 - `Consolidar_data.ipynb`: notebook de apoyo para consolidar el dataset final.
 
@@ -44,6 +88,13 @@ python -m pip install -e ".[dev]"
 Con esto `python -m millos_data ...` y `import millos_data` funcionan desde cualquier carpeta, sin
 necesidad de tocar `PYTHONPATH`. Si preferis no instalar el paquete, seguis pudiendo usar
 `PYTHONPATH=src` como antes; los notebooks lo hacen asi.
+
+`[dev]` ya incluye lo necesario para el dashboard (Streamlit, Plotly, DuckDB). Si solo queres esas
+tres dependencias, sin `pytest`, instala el extra `dashboard`:
+
+```powershell
+python -m pip install -e ".[dashboard]"
+```
 
 ## Git
 
@@ -144,6 +195,102 @@ python -m millos_data download-season --season 2025 --output-dir data/2025
 
 Ver la seccion [Mantenimiento](#mantenimiento-partidos-duplicados-por-cambio-de-nombre-de-rival).
 
+### Construir las tablas de analitica (para el dashboard)
+
+Lee el CSV consolidado + los JSON en disco y escribe tres tablas en `analytics/`:
+
+```powershell
+python -m millos_data build-analytics --base-path .
+```
+
+- `match_results.csv`: un resultado por partido (incluye los partidos sin plantilla registrada,
+  que `consolidate` descarta).
+- `player_match_features.csv`: el dataset consolidado + columnas derivadas (`pases_precision_num`,
+  `jugo`, tasas `*_por90`, `anio`).
+- `player_season_summary.csv`: agregado por jugador x anio.
+
+Correlo de nuevo cada vez que cambie `dataset_millonarios_consolidado.csv`. Ver
+[docs/analytics_kpis.md](docs/analytics_kpis.md) para el detalle de cada metrica.
+
+`build_player_match_features` fusiona automaticamente variantes de escritura del mismo jugador
+(tildes/mayusculas, p. ej. "Daniel Ruiz" / "Daniel Ruíz"), eligiendo la grafia mas frecuente como
+canonica. Ver [Validacion de datos](#validacion-de-datos) para revisar que casos detecto.
+
+### Validar las tablas de analitica
+
+```powershell
+python -m millos_data validate-analytics --base-path .
+```
+
+Corre sanity checks sobre `match_results` y `player_match_features`: partidos duplicados, `puntos`
+inconsistente con `resultado_partido`, minutos fuera de rango, stats negativos, reconciliacion de
+goles del equipo vs. goles individuales de jugadores (un autogol del rival genera una diferencia de
+1, es normal; mas de eso o una diferencia negativa se marca), y variantes de nombre de jugador ya
+fusionadas automaticamente en `build_player_match_features` (te avisa cual eligio como canonica).
+
+Sale con codigo de salida distinto de cero si hay algun `ERROR` (los `WARNING` no fallan el
+comando). Utiles para correr despues de cada `build-analytics`, especialmente tras bajar una
+temporada nueva.
+
+### Refrescar todo de una
+
+Encadena `consolidate` + `build-analytics` + `validate-analytics` (mas una revision de solo
+lectura de partidos duplicados) en un solo comando. Es lo que corres despues de cada
+`download-season`:
+
+```powershell
+python -m millos_data refresh --base-path .
+```
+
+```
+consolidate: scanned_files=200 new_rows=0 total_rows=3110
+analytics: match_results=200 player_match_features=3110 player_season_summary=120
+validate: errors=0 warnings=1
+  [WARNING] player_name_variants: ...
+```
+
+- Acepta `--rebuild` (se pasa a `consolidate`), `--dataset` y `--analytics-dir` (mismos defaults
+  que los comandos individuales).
+- Si `find_duplicate_matches` encuentra partidos duplicados nuevos, `refresh` los reporta pero
+  **nunca mueve archivos** — eso sigue siendo `dedupe-matches --apply`, una accion explicita.
+- `--strict` hace que el comando termine con codigo de salida distinto de cero si `validate`
+  encuentra algun `ERROR` (util para un cron/CI que no deba seguir si los datos quedaron mal).
+
+### Dashboard
+
+Streamlit + DuckDB + Plotly, leyendo las tablas de `analytics/`:
+
+```powershell
+python -m millos_data refresh --base-path .   # o build-analytics, si no queres validar de nuevo
+python -m millos_data dashboard
+```
+
+Abre el dashboard en el navegador (puerto 8501 por defecto, `--port` para cambiarlo). El sidebar
+muestra la carpeta de datos y cuando se actualizaron por ultima vez (mtime de `match_results.csv`).
+Tiene 4 vistas (ver [docs/analytics_kpis.md](docs/analytics_kpis.md) para la prioridad detras de
+cada una):
+
+1. **Equipo**: puntos acumulados, forma reciente (promedio movil de 5 partidos), goles a favor/en
+   contra por partido, resumen por condicion (local/visitante) y por campeonato.
+2. **Ranking de jugadores**: tabla y grafico de barras ordenable por goles/asistencias por 90',
+   calificacion promedio, minutos, % de duelos ganados, filtrable por anio y posicion — con el
+   promedio de la posicion como referencia (`promedio_posicion` / `vs_promedio_posicion`) y boton
+   de descarga a CSV.
+3. **Ficha de jugador**: calificacion y minutos partido a partido para un jugador elegido.
+4. **Comparador**: 2+ jugadores (o el mismo jugador en distintos anios) lado a lado, con descarga
+   a CSV.
+
+Si preferis apuntar a otra carpeta de analitica (por ejemplo para probar con datos de otra
+temporada sin pisar la carpeta `analytics/` principal):
+
+```powershell
+python -m millos_data dashboard --analytics-dir otra_carpeta/analytics --port 8502
+```
+
+`dashboard/data.py` es la unica capa que sabe consultar las tablas (via DuckDB); `dashboard/app.py`
+solo arma la UI con esas funciones — si agregas una vista nueva, la query va primero en `data.py`
+para que quede testeada sin depender de Streamlit.
+
 ## Uso desde Python
 
 ### Consolidar dataset
@@ -225,6 +372,61 @@ result = archive_duplicate_matches(
 )
 ```
 
+### Construir las tablas de analitica
+
+```python
+from pathlib import Path
+
+from millos_data import (
+    build_match_results,
+    build_player_match_features,
+    build_player_season_summary,
+)
+from millos_data.consolidate import read_existing_dataset
+
+match_results = build_match_results(Path("."))
+player_features = build_player_match_features(
+    read_existing_dataset(Path("dataset_millonarios_consolidado.csv"))
+)
+season_summary = build_player_season_summary(player_features)
+```
+
+### Validar las tablas de analitica
+
+```python
+from pathlib import Path
+
+from millos_data import run_validations
+
+report = run_validations(
+    base_path=Path("."),
+    dataset_path=Path("dataset_millonarios_consolidado.csv"),
+)
+
+print(f"errors={len(report.errors)} warnings={len(report.warnings)}")
+for issue in report.issues:
+    print(issue.severity, issue.check, issue.message)
+    print(issue.details)  # DataFrame con las filas involucradas
+```
+
+### Refrescar todo de una
+
+```python
+from pathlib import Path
+
+from millos_data import run_refresh
+
+result = run_refresh(
+    base_path=Path("."),
+    dataset_path=Path("dataset_millonarios_consolidado.csv"),
+    analytics_output_dir=Path("analytics"),
+)
+
+print(result.consolidation.new_rows)
+print(result.match_results_rows, result.player_match_features_rows, result.player_season_summary_rows)
+print(result.validation.ok, len(result.validation.errors), len(result.validation.warnings))
+```
+
 ## Uso desde notebooks
 
 Los notebooks estan restaurados y usan los modulos nuevos.
@@ -285,7 +487,45 @@ pytest -q
 - [src/millos_data/transform.py](src/millos_data/transform.py)
 - [src/millos_data/consolidate.py](src/millos_data/consolidate.py)
 - [src/millos_data/dedupe.py](src/millos_data/dedupe.py)
+- [src/millos_data/analytics.py](src/millos_data/analytics.py)
+- [src/millos_data/validate.py](src/millos_data/validate.py)
+- [src/millos_data/pipeline.py](src/millos_data/pipeline.py)
+- [src/millos_data/dashboard/data.py](src/millos_data/dashboard/data.py)
+- [src/millos_data/dashboard/app.py](src/millos_data/dashboard/app.py)
 - [src/millos_data/cli.py](src/millos_data/cli.py)
+- [docs/analytics_kpis.md](docs/analytics_kpis.md)
+
+## Ideas para Fase 6 (analitica avanzada — no implementado)
+
+Las Fases 0-5 cubren analitica descriptiva: que paso, y como se compara un jugador contra su
+posicion. Estas ideas quedan para despues, una vez que las vistas actuales muestren que valen la
+pena iterar mas alla de lo descriptivo:
+
+- **Clustering de jugadores por estilo de juego**: K-means (u otro) sobre las stats normalizadas
+  de `player_season_summary` (por 90', no absolutas) para encontrar perfiles de juego que no
+  coinciden exactamente con la posicion formal (p. ej. un mediocampista mas "recuperador" vs. uno
+  mas "de construccion").
+- **Deteccion de tendencias/declive de rendimiento**: regresion o test de cambio de nivel sobre la
+  serie de `calificacion` (o `goles_por90`) de cada jugador en el tiempo, para señalar caidas
+  sostenidas — insumo para decisiones de rotacion, no solo para mirar el numero mas reciente.
+- **Indice compuesto de "impacto"**: combinar goles + asistencias + duelos ganados + pases en un
+  score ponderado por posicion (los pesos de un defensor y un delantero no deberian ser los
+  mismos), para poder rankear jugadores de perfiles distintos con un solo numero.
+- **Posicion real en la tabla de la liga**: hoy `match_results` solo tiene los partidos de
+  Millonarios. Bajar la tabla de posiciones completa (endpoint de standings de API-Football)
+  permitiria comparar la "forma" del equipo contra el resto de la liga, no solo contra si mismo —
+  ver la limitacion documentada en [docs/analytics_kpis.md](docs/analytics_kpis.md).
+- **Historial cabeza a cabeza vs. un rival especifico**: filtrar `match_results` por `rival` para
+  ver el patron historico contra un equipo puntual antes de un partido.
+- **Fatiga / congestion de calendario**: cruzar fechas de partidos consecutivos (dias de descanso
+  entre partidos) contra `calificacion`/`minutos` para ver si el rendimiento cae con calendarios
+  apretados.
+- **Expected goals/assists (proxy)**: si la API expone eventos de tiro mas detallados (no
+  explorado todavia — requeriria el endpoint de `events`, no solo `fixtures/players`), se podria
+  aproximar un xG simple y comparar goles reales vs. esperados.
+- **Alertas automaticas**: un check tipo `validate.py` pero de negocio, no de calidad de datos
+  (p. ej. "jugador con calificacion promedio por debajo de X en los ultimos 5 partidos"),
+  mostrado como aviso en el sidebar del dashboard.
 
 ## Mantenimiento: partidos duplicados por cambio de nombre de rival
 
