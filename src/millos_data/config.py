@@ -5,34 +5,16 @@ from typing import ClassVar
 from dataclasses import dataclass
 from pathlib import Path
 
+from dotenv import find_dotenv, load_dotenv
 
-def load_env_file(env_path: Path) -> None:
-    if not env_path.exists():
-        return
-
-    for raw_line in env_path.read_text(encoding="utf-8").splitlines():
-        line = raw_line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-
-        key, value = line.split("=", 1)
-        key = key.strip()
-        value = value.strip().strip("'").strip('"')
-        os.environ.setdefault(key, value)
+# Naming convention shared by extract.py (writes) and consolidate.py (reads)
+# for a season's stats folder, e.g. "Millonarios_2025_Stats_Detalladas".
+STATS_DIRECTORY_PREFIX = "Millonarios_"
+STATS_DIRECTORY_SUFFIX = "Stats_Detalladas"
 
 
-def candidate_env_paths() -> list[Path]:
-    paths: list[Path] = []
-    seen: set[Path] = set()
-
-    for base in (Path.cwd().resolve(), Path(__file__).resolve().parents[2]):
-        for directory in (base, *base.parents):
-            candidate = directory / ".env"
-            if candidate not in seen:
-                seen.add(candidate)
-                paths.append(candidate)
-
-    return paths
+def season_directory_name(season: int) -> str:
+    return f"{STATS_DIRECTORY_PREFIX}{season}_{STATS_DIRECTORY_SUFFIX}"
 
 
 @dataclass(frozen=True)
@@ -55,8 +37,11 @@ class ApiConfig:
 
     @classmethod
     def from_env(cls) -> "ApiConfig":
-        for env_path in candidate_env_paths():
-            load_env_file(env_path)
+        # Walks up from the current working directory (and from the repo
+        # root as a fallback) looking for a .env file; existing environment
+        # variables always win over what's in the file.
+        load_dotenv(find_dotenv(usecwd=True))
+        load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
         api_key = os.getenv("FOOTBALL_API_KEY", "").strip()
         if not api_key:

@@ -2,41 +2,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable
 
 import pandas as pd
 
+from .config import STATS_DIRECTORY_PREFIX, STATS_DIRECTORY_SUFFIX
+from .schema import OUTPUT_COLUMNS
 from .transform import build_match_id, flatten_match_file, read_json_file
 
-DEFAULT_OUTPUT_COLUMNS = [
-    "match_id",
-    "source_file",
-    "fecha",
-    "campeonato",
-    "rival",
-    "condicion",
-    "resultado",
-    "jugador",
-    "posicion",
-    "minutos",
-    "calificacion",
-    "titular",
-    "goles",
-    "asistencias",
-    "remates_totales",
-    "remates_al_arco",
-    "pases_totales",
-    "pases_precision",
-    "entradas",
-    "intercepciones",
-    "despejes",
-    "duelos_totales",
-    "duelos_ganados",
-    "faltas_cometidas",
-    "faltas_recibidas",
-    "amarillas",
-    "rojas",
-]
+# Column order for the consolidated CSV. Derived from schema.py so it can
+# never drift from what flatten_match_file actually produces.
+DEFAULT_OUTPUT_COLUMNS = OUTPUT_COLUMNS
 
 
 @dataclass
@@ -52,7 +27,9 @@ def discover_stats_directories(base_path: Path) -> list[Path]:
     return sorted(
         path
         for path in base_path.iterdir()
-        if path.is_dir() and path.name.startswith("Millonarios_") and "Stats_Detalladas" in path.name
+        if path.is_dir()
+        and path.name.startswith(STATS_DIRECTORY_PREFIX)
+        and STATS_DIRECTORY_SUFFIX in path.name
     )
 
 
@@ -105,8 +82,16 @@ def consolidate_dataset(
     base_path: Path,
     output_path: Path,
     write_output: bool = True,
+    rebuild: bool = False,
 ) -> ConsolidationResult:
-    existing_df = read_existing_dataset(output_path)
+    if rebuild:
+        # Ignore whatever is already in output_path and regenerate the
+        # dataset purely from the JSON files on disk. Useful after cleaning
+        # up duplicated/legacy JSON files, since the existing CSV may have
+        # already baked in rows from files that no longer exist.
+        existing_df = ensure_output_columns(pd.DataFrame(columns=DEFAULT_OUTPUT_COLUMNS))
+    else:
+        existing_df = read_existing_dataset(output_path)
     processed_match_ids = set(existing_df["match_id"].dropna().astype(str))
 
     scanned_files = 0

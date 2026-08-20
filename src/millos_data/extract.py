@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import json
+import logging
+import random
 import time
 from pathlib import Path
 from typing import Any
@@ -8,6 +11,10 @@ import pandas as pd
 import requests
 
 from .config import ApiConfig
+
+RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
+
+logger = logging.getLogger(__name__)
 
 
 def search_teams(config: ApiConfig, query: str) -> pd.DataFrame:
@@ -65,20 +72,32 @@ def _download_fixture_stats(
 ) -> dict[str, int]:
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    existing_fixture_ids = _collect_existing_fixture_ids(output_dir)
+
     downloaded = 0
     skipped = 0
     already_downloaded_files: list[str] = []
+    total = len(fixtures)
 
-    for fixture in fixtures:
+    for index, fixture in enumerate(fixtures, start=1):
+        fixture_id = fixture["fixture"]["id"]
         file_path = build_fixture_filename(output_dir, config.team_id, fixture)
-        if file_path.exists():
+
+        # Skip if we already have this exact file OR if we already have this
+        # fixture under a different filename (e.g. the API renamed the rival
+        # team between downloads). Relying on the filename alone caused the
+        # same match to be downloaded twice under different names.
+        if file_path.exists() or fixture_id in existing_fixture_ids:
             skipped += 1
             already_downloaded_files.append(file_path.name)
+            logger.info("(%d/%d) omitido, ya existe: %s", index, total, file_path.name)
             continue
 
         file_payload = build_fixture_payload(config, fixture)
         file_path.write_text(file_payload, encoding="utf-8")
+        existing_fixture_ids.add(fixture_id)
         downloaded += 1
+        logger.info("(%d/%d) descargado: %s", index, total, file_path.name)
         time.sleep(config.request_delay_seconds)
 
     return {
@@ -92,6 +111,35 @@ def _download_fixture_stats(
         "skipped_existing": skipped,
         "existing_files_sample": already_downloaded_files[:5],
     }
+
+
+def _collect_existing_fixture_ids(output_dir: Path) -> set[int]:
+    """Read fixture_id from every JSON already saved in output_dir.
+
+    Used to detect a fixture that was already downloaded even if its
+    filename would no longer match (e.g. the rival team was renamed by
+    the API after the first download).
+    """
+    fixture_ids: set[int] = set()
+    for json_path in output_dir.glob("*.json"):
+        try:
+            data = json.loads(json_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        fixture_id = data.get("metadata", {}).get("fixture_id")
+        if fixture_id not in (None, ""):
+            try:
+                fixture_ids.add(int(fixture_id))
+            except (TypeError, ValueError):
+                continue
+    return fixture_ids
+
+
+def _stat(source: dict[str, Any] | None, key: str, default: Any = 0) -> Any:
+    if not isinstance(source, dict):
+        return default
+    value = source.get(key)
+    return default if value is None else value
 
 
 def build_fixture_payload(config: ApiConfig, fixture: dict[str, Any]) -> str:
@@ -109,43 +157,56 @@ def build_fixture_payload(config: ApiConfig, fixture: dict[str, Any]) -> str:
     players = []
     if stats.get("response"):
         for player in stats["response"][0].get("players", []):
-            statistics = player["statistics"][0]
+            # The API can omit stat blocks for players with no minutes played
+            # or return an incomplete payload for some fixtures. Using .get()
+            # throughout avoids aborting the whole season download on a
+            # single malformed player record.
+            player_info = player.get("player") or {}
+            statistics = (player.get("statistics") or [{}])[0] or {}
+
+            games = statistics.get("games") or {}
+            shots = statistics.get("shots") or {}
+            goals = statistics.get("goals") or {}
+            passes = statistics.get("passes") or {}
+            tackles = statistics.get("tackles") or {}
+            duels = statistics.get("duels") or {}
+            fouls = statistics.get("fouls") or {}
+            cards = statistics.get("cards") or {}
+
+            accuracy = passes.get("accuracy")
+
             players.append(
                 {
-                    "nombre": player["player"]["name"],
-                    "posicion": statistics["games"]["position"],
-                    "minutos": statistics["games"]["minutes"] or 0,
-                    "calificacion": statistics["games"]["rating"],
-                    "titular": not statistics["games"]["substitute"],
+                    "nombre": player_info.get("name"),
+                    "posicion": games.get("position"),
+                    "minutos": _stat(games, "minutes"),
+                    "calificacion": games.get("rating"),
+                    "titular": not games.get("substitute", False),
                     "rendimiento": {
-                        "remates_totales": statistics["shots"]["total"] or 0,
-                        "remates_al_arco": statistics["shots"]["on"] or 0,
-                        "goles": statistics["goals"]["total"] or 0,
-                        "asistencias": statistics["goals"]["assists"] or 0,
+                        "remates_totales": _stat(shots, "total"),
+                        "remates_al_arco": _stat(shots, "on"),
+                        "goles": _stat(goals, "total"),
+                        "asistencias": _stat(goals, "assists"),
                         "pases": {
-                            "totales": statistics["passes"]["total"] or 0,
-                            "precision": (
-                                f"{statistics['passes']['accuracy']}%"
-                                if statistics["passes"]["accuracy"]
-                                else "0%"
-                            ),
+                            "totales": _stat(passes, "total"),
+                            "precision": f"{accuracy}%" if accuracy else "0%",
                         },
                         "defensa": {
-                            "entradas": statistics["tackles"]["total"] or 0,
-                            "intercepciones": statistics["tackles"]["interceptions"] or 0,
-                            "despejes": statistics["tackles"]["blocks"] or 0,
+                            "entradas": _stat(tackles, "total"),
+                            "intercepciones": _stat(tackles, "interceptions"),
+                            "despejes": _stat(tackles, "blocks"),
                         },
                         "duelos": {
-                            "totales": statistics["duels"]["total"] or 0,
-                            "ganados": statistics["duels"]["won"] or 0,
+                            "totales": _stat(duels, "total"),
+                            "ganados": _stat(duels, "won"),
                         },
                         "faltas": {
-                            "cometidas": statistics["fouls"]["committed"] or 0,
-                            "recibidas": statistics["fouls"]["drawn"] or 0,
+                            "cometidas": _stat(fouls, "committed"),
+                            "recibidas": _stat(fouls, "drawn"),
                         },
                         "tarjetas": {
-                            "amarilla": statistics["cards"]["yellow"],
-                            "roja": statistics["cards"]["red"],
+                            "amarilla": cards.get("yellow"),
+                            "roja": cards.get("red"),
                         },
                     },
                 }
@@ -164,8 +225,6 @@ def build_fixture_payload(config: ApiConfig, fixture: dict[str, Any]) -> str:
         "jugadores": players,
     }
 
-    import json
-
     return json.dumps(payload, ensure_ascii=False, indent=2)
 
 
@@ -175,7 +234,11 @@ def build_fixture_filename(output_dir: Path, team_id: int, fixture: dict[str, An
     condition = "Local" if is_home else "Visitante"
     rival_name = fixture["teams"]["away"]["name"] if is_home else fixture["teams"]["home"]["name"]
     rival_slug = rival_name.replace(" ", "_")
-    return output_dir / f"{date}_{condition}_{rival_slug}.json"
+    fixture_id = fixture["fixture"]["id"]
+    # fixture_id is embedded so the filename stays unique and traceable even
+    # if the API later renames the rival team (see _collect_existing_fixture_ids
+    # for the accompanying dedup-by-content check).
+    return output_dir / f"{date}_{condition}_{rival_slug}_{fixture_id}.json"
 
 
 def filter_supported_team_fixtures(
@@ -200,12 +263,56 @@ def validate_fixture_team(config: ApiConfig, fixture: dict[str, Any]) -> None:
         )
 
 
-def fetch_json(config: ApiConfig, endpoint: str, params: dict[str, Any]) -> dict[str, Any]:
-    response = requests.get(
-        f"{config.base_url}{endpoint}",
-        headers=config.headers,
-        params=params,
-        timeout=30,
-    )
-    response.raise_for_status()
-    return response.json()
+def _retry_delay(response: requests.Response | None, attempt: int) -> float:
+    if response is not None:
+        retry_after = response.headers.get("Retry-After")
+        if retry_after:
+            try:
+                return float(retry_after)
+            except ValueError:
+                pass
+    # Exponential backoff with jitter: ~1s, 2s, 4s, ...
+    return (2**attempt) + random.uniform(0, 1)
+
+
+def fetch_json(
+    config: ApiConfig,
+    endpoint: str,
+    params: dict[str, Any],
+    max_retries: int = 3,
+) -> dict[str, Any]:
+    last_error: Exception | None = None
+
+    for attempt in range(max_retries + 1):
+        response: requests.Response | None = None
+        try:
+            response = requests.get(
+                f"{config.base_url}{endpoint}",
+                headers=config.headers,
+                params=params,
+                timeout=30,
+            )
+        except requests.exceptions.RequestException as exc:
+            last_error = exc
+        else:
+            if response.status_code not in RETRYABLE_STATUS_CODES:
+                response.raise_for_status()
+                return response.json()
+            last_error = requests.exceptions.HTTPError(
+                f"{response.status_code} error from {endpoint}", response=response
+            )
+
+        if attempt < max_retries:
+            delay = _retry_delay(response, attempt)
+            logger.warning(
+                "%s failed (%s), retrying in %.1fs (attempt %d/%d)",
+                endpoint,
+                last_error,
+                delay,
+                attempt + 1,
+                max_retries,
+            )
+            time.sleep(delay)
+
+    assert last_error is not None
+    raise last_error

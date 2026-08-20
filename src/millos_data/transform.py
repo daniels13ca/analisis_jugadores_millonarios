@@ -6,6 +6,8 @@ from typing import Any
 
 import pandas as pd
 
+from .schema import extract_performance, normalize_nullable
+
 
 def read_json_file(path: Path) -> dict[str, Any]:
     with path.open("r", encoding="utf-8") as handle:
@@ -41,11 +43,6 @@ def flatten_match_file(path: Path) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for player in players:
         performance = player.get("rendimiento", {})
-        passes = performance.get("pases", {})
-        defense = performance.get("defensa", {})
-        duels = performance.get("duelos", {})
-        fouls = performance.get("faltas", {})
-        cards = performance.get("tarjetas", {})
 
         row = {
             "match_id": match_id,
@@ -60,28 +57,8 @@ def flatten_match_file(path: Path) -> list[dict[str, Any]]:
             "minutos": normalize_nullable(player.get("minutos")),
             "calificacion": pd.to_numeric(player.get("calificacion"), errors="coerce"),
             "titular": player.get("titular"),
-            "goles": normalize_nullable(performance.get("goles")),
-            "asistencias": normalize_nullable(performance.get("asistencias")),
-            "remates_totales": normalize_nullable(performance.get("remates_totales")),
-            "remates_al_arco": normalize_nullable(performance.get("remates_al_arco")),
-            "pases_totales": normalize_nullable(passes.get("totales")),
-            "pases_precision": normalize_nullable(passes.get("precision")),
-            "entradas": normalize_nullable(defense.get("entradas")),
-            "intercepciones": normalize_nullable(defense.get("intercepciones")),
-            "despejes": normalize_nullable(defense.get("despejes")),
-            "duelos_totales": normalize_nullable(duels.get("totales")),
-            "duelos_ganados": normalize_nullable(duels.get("ganados")),
-            "faltas_cometidas": normalize_nullable(fouls.get("cometidas")),
-            "faltas_recibidas": normalize_nullable(fouls.get("recibidas")),
-            "amarillas": normalize_nullable(cards.get("amarilla")),
-            "rojas": normalize_nullable(cards.get("roja")),
+            **extract_performance(performance),
         }
         rows.append(row)
 
     return rows
-
-
-def normalize_nullable(value: Any) -> Any:
-    if value in (None, ""):
-        return pd.NA
-    return value
