@@ -1,6 +1,7 @@
 import pandas as pd
 
 from millos_data.validate import (
+    check_condicion_valid,
     check_minutes_within_bounds,
     check_no_duplicate_match_ids,
     check_no_negative_stats,
@@ -15,6 +16,7 @@ def make_match_results(**overrides) -> pd.DataFrame:
         "match_id": ["m1", "m2"],
         "fecha": ["2024-01-19", "2024-01-25"],
         "rival": ["Junior", "Santa Fe"],
+        "condicion": ["Local", "Visitante"],
         "goles_favor": [1, 2],
         "goles_contra": [0, 2],
         "resultado_partido": ["W", "D"],
@@ -22,6 +24,27 @@ def make_match_results(**overrides) -> pd.DataFrame:
     }
     base.update(overrides)
     return pd.DataFrame(base)
+
+
+def test_check_condicion_valid_clean() -> None:
+    assert check_condicion_valid(make_match_results()) == []
+
+
+def test_check_condicion_valid_flags_missing_value() -> None:
+    df = make_match_results(condicion=["Local", None])
+    issues = check_condicion_valid(df)
+    assert len(issues) == 1
+    assert issues[0].severity == "error"
+    assert len(issues[0].details) == 1
+    assert issues[0].details.iloc[0]["match_id"] == "m2"
+
+
+def test_check_condicion_valid_flags_unexpected_value() -> None:
+    df = make_match_results(condicion=["Local", "Neutral"])
+    issues = check_condicion_valid(df)
+    assert len(issues) == 1
+    assert issues[0].severity == "error"
+    assert "Neutral" in issues[0].details["condicion"].tolist()
 
 
 def test_check_no_duplicate_match_ids_flags_repeated_ids() -> None:

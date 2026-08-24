@@ -53,7 +53,8 @@ el paso 4 despues de cada descarga nueva. Detalle de cada comando en las seccion
     negativos, reconciliacion de goles equipo vs. jugadores, variantes de nombre) — ver
     [Validacion de datos](#validacion-de-datos).
   - `dashboard/`: dashboard Streamlit + DuckDB + Plotly. `data.py` es la capa de queries (DuckDB,
-    testeable sin Streamlit); `app.py` es la UI. Ver [Dashboard](#dashboard).
+    testeable sin Streamlit); `formatting.py` tiene los labels/colores compartidos (W/D/L,
+    Local/Visitante, paleta de marca); `app.py` es la UI. Ver [Dashboard](#dashboard).
   - `pipeline.py`: orquesta consolidate + build-analytics + validate-analytics en un solo paso
     (`refresh`) — ver [Refrescar todo de una](#refrescar-todo-de-una).
   - `cli.py`: comandos `consolidate`, `download-season`, `dedupe-matches`, `build-analytics`,
@@ -67,6 +68,7 @@ el paso 4 despues de cada descarga nueva. Detalle de cada comando en las seccion
   borran, solo se sacan del set activo).
 - `analytics/`: tablas derivadas que genera `build-analytics` (`match_results.csv`,
   `player_match_features.csv`, `player_season_summary.csv`), listas para leer desde un dashboard.
+- `.streamlit/config.toml`: tema visual del dashboard (colores, tipografia).
 - `Descargar_temporada.ipynb`: notebook de apoyo para buscar equipos y descargar datos.
 - `Consolidar_data.ipynb`: notebook de apoyo para consolidar el dataset final.
 
@@ -223,10 +225,12 @@ python -m millos_data validate-analytics --base-path .
 ```
 
 Corre sanity checks sobre `match_results` y `player_match_features`: partidos duplicados, `puntos`
-inconsistente con `resultado_partido`, minutos fuera de rango, stats negativos, reconciliacion de
-goles del equipo vs. goles individuales de jugadores (un autogol del rival genera una diferencia de
-1, es normal; mas de eso o una diferencia negativa se marca), y variantes de nombre de jugador ya
-fusionadas automaticamente en `build_player_match_features` (te avisa cual eligio como canonica).
+inconsistente con `resultado_partido`, `condicion` invalida (todo partido de Millonarios debe ser
+`Local` o `Visitante`, sin nulos ni otro valor), minutos fuera de rango, stats negativos,
+reconciliacion de goles del equipo vs. goles individuales de jugadores (un autogol del rival genera
+una diferencia de 1, es normal; mas de eso o una diferencia negativa se marca), y variantes de
+nombre de jugador ya fusionadas automaticamente en `build_player_match_features` (te avisa cual
+eligio como canonica).
 
 Sale con codigo de salida distinto de cero si hay algun `ERROR` (los `WARNING` no fallan el
 comando). Utiles para correr despues de cada `build-analytics`, especialmente tras bajar una
@@ -265,19 +269,24 @@ python -m millos_data refresh --base-path .   # o build-analytics, si no queres 
 python -m millos_data dashboard
 ```
 
-Abre el dashboard en el navegador (puerto 8501 por defecto, `--port` para cambiarlo). El sidebar
-muestra la carpeta de datos y cuando se actualizaron por ultima vez (mtime de `match_results.csv`).
-Tiene 4 vistas (ver [docs/analytics_kpis.md](docs/analytics_kpis.md) para la prioridad detras de
-cada una):
+Abre el dashboard en el navegador (puerto 8501 por defecto, `--port` para cambiarlo). Usa un tema
+propio (`.streamlit/config.toml`, azul/blanco de Millonarios) en vez del Streamlit por defecto. El
+sidebar muestra la carpeta de datos y cuando se actualizaron por ultima vez (mtime de
+`match_results.csv`). Tiene 5 vistas (ver [docs/analytics_kpis.md](docs/analytics_kpis.md) para la
+prioridad detras de cada una):
 
 1. **Equipo**: puntos acumulados, forma reciente (promedio movil de 5 partidos), goles a favor/en
    contra por partido, resumen por condicion (local/visitante) y por campeonato.
-2. **Ranking de jugadores**: tabla y grafico de barras ordenable por goles/asistencias por 90',
+2. **Partidos**: el detalle partido a partido — fecha, rival, condicion (🏠/✈️), marcador y
+   resultado (🟢/🟡/🔴), filtrable por campeonato/condicion/resultado. Eligiendo un partido se ve
+   su planilla completa (titulares/suplentes, minutos, calificacion, goles, y el resto de las
+   stats de cada jugador en ese partido).
+3. **Ranking de jugadores**: tabla y grafico de barras ordenable por goles/asistencias por 90',
    calificacion promedio, minutos, % de duelos ganados, filtrable por anio y posicion — con el
    promedio de la posicion como referencia (`promedio_posicion` / `vs_promedio_posicion`) y boton
    de descarga a CSV.
-3. **Ficha de jugador**: calificacion y minutos partido a partido para un jugador elegido.
-4. **Comparador**: 2+ jugadores (o el mismo jugador en distintos anios) lado a lado, con descarga
+4. **Ficha de jugador**: calificacion y minutos partido a partido para un jugador elegido.
+5. **Comparador**: 2+ jugadores (o el mismo jugador en distintos anios) lado a lado, con descarga
    a CSV.
 
 Si preferis apuntar a otra carpeta de analitica (por ejemplo para probar con datos de otra

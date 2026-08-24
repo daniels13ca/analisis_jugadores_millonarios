@@ -88,7 +88,9 @@ después de validar que estas vistas ya aportan valor.
 ## Fase 2 — Validación, implementada
 
 `validate.py` corre los checks de consistencia interna descritos arriba
-(reconciliación de goles, `puntos` vs. `resultado_partido`, duplicados,
-variantes de nombre) sobre datos reales. Estado a la fecha: **0 errores**, 1
-warning esperado (las 4 variantes de nombre ya fusionadas, ver arriba). Ver
+(reconciliación de goles, `puntos` vs. `resultado_partido`, `condicion`
+valida — todo partido debe ser `Local` o `Visitante`, sin nulos ni otro
+valor —, duplicados, variantes de nombre) sobre datos reales. Estado a la
+fecha: **0 errores**, 1 warning esperado (las 4 variantes de nombre ya
+fusionadas, ver arriba). Ver
 `python -m millos_data validate-analytics`.

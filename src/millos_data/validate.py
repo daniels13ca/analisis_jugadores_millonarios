@@ -48,6 +48,11 @@ MAX_PLAUSIBLE_MINUTES = 130
 # own goal per match is common; more than that is worth a manual look.
 MAX_EXPECTED_GOAL_GAP = 1
 
+# Millonarios plays every match either at home or away -- there's no third
+# option. See config.ApiConfig / extract.build_fixture_payload, which only
+# ever writes one of these two values.
+VALID_CONDICIONES = {"Local", "Visitante"}
+
 
 @dataclass
 class ValidationIssue:
@@ -120,6 +125,31 @@ def check_minutes_within_bounds(player_features: pd.DataFrame) -> list[Validatio
                 f"[0, {MAX_PLAUSIBLE_MINUTES}]"
             ),
             details=out_of_bounds,
+        )
+    ]
+
+
+def check_condicion_valid(match_results: pd.DataFrame) -> list[ValidationIssue]:
+    """Every match must be Local or Visitante for Millonarios -- no third option.
+
+    A missing/blank/misspelled condicion silently breaks every home/away
+    split (team_summary by condicion, the Partidos tab filter, the win/draw/
+    loss cards) for that match instead of raising anywhere, so it's worth
+    catching explicitly rather than relying on those views looking "a little
+    off".
+    """
+    invalid = match_results[~match_results["condicion"].isin(VALID_CONDICIONES)]
+    if invalid.empty:
+        return []
+    return [
+        ValidationIssue(
+            check="condicion_valid",
+            severity="error",
+            message=(
+                f"{len(invalid)} partido(s) sin `condicion` valida "
+                f"(debe ser 'Local' o 'Visitante')"
+            ),
+            details=invalid,
         )
     ]
 
@@ -238,6 +268,7 @@ def run_validations(base_path: Path, dataset_path: Path) -> ValidationReport:
     issues: list[ValidationIssue] = [
         *check_no_duplicate_match_ids(match_results),
         *check_points_consistency(match_results),
+        *check_condicion_valid(match_results),
         *check_minutes_within_bounds(player_features),
         *check_no_negative_stats(player_features),
         *check_team_goals_reconciliation(match_results, player_features),

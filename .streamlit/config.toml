@@ -1,0 +1,15 @@
+# Visual theme for the Millonarios FC dashboard (blue/white, the club's
+# colors) instead of Streamlit's generic red-accented default.
+# https://docs.streamlit.io/develop/api-reference/configuration/config.toml
+
+[theme]
+base = "light"
+primaryColor = "#0A3D91"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#EEF3FA"
+textColor = "#1A1D29"
+font = "sans serif"
+baseRadius = "0.5rem"
+
+[server]
+headless = true

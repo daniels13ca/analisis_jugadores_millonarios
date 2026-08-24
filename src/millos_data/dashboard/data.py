@@ -119,6 +119,91 @@ def match_results_with_form(
     return con.execute(query, params).df()
 
 
+def points_race_by_year(
+    con: duckdb.DuckDBPyConnection,
+    campeonatos: list[str] | None = None,
+) -> pd.DataFrame:
+    """Cumulative points per year, indexed by jornada (matchday-within-year)
+    instead of calendar date.
+
+    A single "all-time" cumulative line (mixing years and competitions) only
+    ever goes up and doesn't say much on its own. Resetting the cumulative
+    sum at the start of each year and aligning by jornada instead of date
+    turns it into something you can actually compare: "at this point in the
+    season, are we ahead of or behind last year's pace?".
+    """
+    where_sql = ""
+    params: list[str] = []
+    if campeonatos:
+        where_sql = f"WHERE campeonato IN ({','.join(['?'] * len(campeonatos))})"
+        params = campeonatos
+
+    query = f"""
+        WITH partidos AS (
+            SELECT
+                fecha,
+                puntos,
+                EXTRACT(YEAR FROM CAST(fecha AS DATE))::INTEGER AS anio
+            FROM match_results
+            {where_sql}
+        )
+        SELECT
+            anio,
+            fecha,
+            ROW_NUMBER() OVER (PARTITION BY anio ORDER BY fecha) AS jornada,
+            SUM(puntos) OVER (
+                PARTITION BY anio ORDER BY fecha
+                ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+            ) AS puntos_acumulados
+        FROM partidos
+        ORDER BY anio, fecha
+    """
+    return con.execute(query, params).df()
+
+
+def matches_filtered(
+    con: duckdb.DuckDBPyConnection,
+    campeonatos: list[str] | None = None,
+    condiciones: list[str] | None = None,
+    resultados: list[str] | None = None,
+) -> pd.DataFrame:
+    """Match log (fecha, rival, condicion, resultado, ...), most recent first.
+
+    This is the "match detail" view: browsing individual matches rather than
+    an aggregate. `resultados` filters on resultado_partido (W/D/L).
+    """
+    where_clauses = []
+    params: list[str] = []
+    if campeonatos:
+        where_clauses.append(f"campeonato IN ({','.join(['?'] * len(campeonatos))})")
+        params.extend(campeonatos)
+    if condiciones:
+        where_clauses.append(f"condicion IN ({','.join(['?'] * len(condiciones))})")
+        params.extend(condiciones)
+    if resultados:
+        where_clauses.append(f"resultado_partido IN ({','.join(['?'] * len(resultados))})")
+        params.extend(resultados)
+    where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+
+    query = f"SELECT * FROM match_results {where_sql} ORDER BY fecha DESC"
+    return con.execute(query, params).df()
+
+
+def match_lineup(con: duckdb.DuckDBPyConnection, match_id: str) -> pd.DataFrame:
+    """Player-by-player stats for one match (the "planilla"), starters first."""
+    query = """
+        SELECT
+            jugador, posicion, titular, minutos, calificacion, goles, asistencias,
+            remates_totales, remates_al_arco, pases_totales, pases_precision,
+            entradas, intercepciones, despejes, duelos_totales, duelos_ganados,
+            faltas_cometidas, faltas_recibidas, amarillas, rojas
+        FROM player_match_features
+        WHERE match_id = ?
+        ORDER BY titular DESC, minutos DESC
+    """
+    return con.execute(query, [match_id]).df()
+
+
 _TEAM_SUMMARY_GROUP_COLUMNS = {"condicion", "campeonato"}
 
 

@@ -37,11 +37,25 @@ def analytics_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
             "fecha": ["2024-01-01", "2024-01-08"],
             "jugador": ["Jugador A", "Jugador A"],
             "posicion": ["F", "F"],
+            "titular": [True, True],
             "minutos": [90, 45],
             "calificacion": [7.5, 7.0],
             "jugo": [True, True],
             "goles": [1, 0],
             "asistencias": [0, 0],
+            "remates_totales": [2, 1],
+            "remates_al_arco": [1, 0],
+            "pases_totales": [30, 15],
+            "pases_precision": ["80%", "70%"],
+            "entradas": [0, 0],
+            "intercepciones": [0, 0],
+            "despejes": [0, 0],
+            "duelos_totales": [4, 2],
+            "duelos_ganados": [2, 1],
+            "faltas_cometidas": [1, 0],
+            "faltas_recibidas": [2, 1],
+            "amarillas": [0, 0],
+            "rojas": [0, 0],
         }
     )
     player_season_summary = pd.DataFrame(
@@ -81,6 +95,11 @@ def test_app_renders_without_exceptions(analytics_dir: Path) -> None:
 
     assert not at.exception
     assert any("Millonarios FC" in title.value for title in at.title)
+
+    # "Partidos" is the 2nd tab: match log table + per-match lineup selector.
+    tab_partidos = at.tabs[1]
+    assert len(tab_partidos.dataframe) >= 1
+    assert len(tab_partidos.selectbox) >= 1
 
 
 def test_app_shows_error_when_analytics_dir_missing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

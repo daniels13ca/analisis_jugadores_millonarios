@@ -31,11 +31,25 @@ def analytics_dir(tmp_path: Path) -> Path:
             "fecha": ["2024-01-01", "2024-01-01", "2024-01-08", "2024-01-22"],
             "jugador": ["Jugador A", "Jugador B", "Jugador A", "Jugador A"],
             "posicion": ["F", "M", "F", "F"],
+            "titular": [True, False, True, False],
             "minutos": [90, 90, 45, 0],
             "calificacion": [7.5, 6.8, 7.0, None],
             "jugo": [True, True, True, False],
             "goles": [1, 0, 0, 0],
             "asistencias": [0, 1, 0, 0],
+            "remates_totales": [2, 0, 1, 0],
+            "remates_al_arco": [1, 0, 0, 0],
+            "pases_totales": [30, 40, 15, 0],
+            "pases_precision": ["80%", "90%", "70%", "0%"],
+            "entradas": [0, 2, 0, 0],
+            "intercepciones": [0, 1, 0, 0],
+            "despejes": [0, 0, 0, 0],
+            "duelos_totales": [4, 5, 2, 0],
+            "duelos_ganados": [2, 3, 1, 0],
+            "faltas_cometidas": [1, 0, 0, 0],
+            "faltas_recibidas": [2, 0, 1, 0],
+            "amarillas": [0, 0, 0, 0],
+            "rojas": [0, 0, 0, 0],
         }
     )
 
@@ -98,6 +112,54 @@ def test_match_results_with_form_computes_cumulative_points(analytics_dir: Path)
     assert result["forma_reciente"].iloc[-1] == pytest.approx(4 / 4)
 
 
+def test_points_race_by_year_resets_cumulative_per_year(analytics_dir: Path) -> None:
+    con = dashboard_data.get_connection(analytics_dir)
+    race = dashboard_data.points_race_by_year(con)
+
+    # The shared fixture's 4 matches are all in 2024 (puntos: 3, 1, 0, 0).
+    assert set(race["anio"]) == {2024}
+    assert list(race["jornada"]) == [1, 2, 3, 4]
+    assert list(race["puntos_acumulados"]) == [3, 4, 4, 4]
+
+
+def test_points_race_by_year_multi_year_resets_and_aligns_by_jornada(tmp_path: Path) -> None:
+    match_results = pd.DataFrame(
+        {
+            "match_id": ["a1", "a2", "b1", "b2", "b3"],
+            "fecha": ["2023-02-01", "2023-02-08", "2024-02-01", "2024-02-08", "2024-02-15"],
+            "campeonato": ["Primera A"] * 5,
+            "rival": ["X", "Y", "X", "Y", "Z"],
+            "condicion": ["Local"] * 5,
+            "resultado": ["1 - 0"] * 5,
+            "goles_favor": [1] * 5,
+            "goles_contra": [0] * 5,
+            "resultado_partido": ["W"] * 5,
+            "puntos": [3, 3, 3, 0, 1],
+            "tiene_datos_jugadores": [True] * 5,
+        }
+    )
+    directory = tmp_path / "analytics"
+    directory.mkdir()
+    match_results.to_csv(directory / "match_results.csv", index=False, encoding="utf-8-sig")
+    # points_race_by_year only touches match_results, but get_connection needs all three files.
+    pd.DataFrame(columns=["jugador"]).to_csv(
+        directory / "player_match_features.csv", index=False, encoding="utf-8-sig"
+    )
+    pd.DataFrame(columns=["jugador", "anio"]).to_csv(
+        directory / "player_season_summary.csv", index=False, encoding="utf-8-sig"
+    )
+
+    con = dashboard_data.get_connection(directory)
+    race = dashboard_data.points_race_by_year(con).set_index(["anio", "jornada"])
+
+    assert race.loc[(2023, 1), "puntos_acumulados"] == 3
+    assert race.loc[(2023, 2), "puntos_acumulados"] == 6
+    # 2024 resets to 0 instead of continuing from 2023's 6.
+    assert race.loc[(2024, 1), "puntos_acumulados"] == 3
+    assert race.loc[(2024, 2), "puntos_acumulados"] == 3
+    assert race.loc[(2024, 3), "puntos_acumulados"] == 4
+
+
 def test_match_results_with_form_filters_by_campeonato(analytics_dir: Path) -> None:
     con = dashboard_data.get_connection(analytics_dir)
     result = dashboard_data.match_results_with_form(con, campeonatos=["Copa"])
@@ -138,6 +200,44 @@ def test_player_match_history_ordered_by_fecha(analytics_dir: Path) -> None:
 
     assert list(history["fecha"]) == ["2024-01-01", "2024-01-08", "2024-01-22"]
     assert history["jugador"].eq("Jugador A").all()
+
+
+def test_matches_filtered_defaults_to_most_recent_first(analytics_dir: Path) -> None:
+    con = dashboard_data.get_connection(analytics_dir)
+    matches = dashboard_data.matches_filtered(con)
+
+    assert list(matches["fecha"]) == ["2024-01-22", "2024-01-15", "2024-01-08", "2024-01-01"]
+    assert len(matches) == 4
+
+
+def test_matches_filtered_by_resultado(analytics_dir: Path) -> None:
+    con = dashboard_data.get_connection(analytics_dir)
+    losses = dashboard_data.matches_filtered(con, resultados=["L"])
+
+    assert list(losses["rival"]) == ["America", "Nacional"]
+
+
+def test_matches_filtered_combines_filters(analytics_dir: Path) -> None:
+    con = dashboard_data.get_connection(analytics_dir)
+    matches = dashboard_data.matches_filtered(
+        con, campeonatos=["Primera A"], condiciones=["Local"]
+    )
+
+    assert list(matches["rival"]) == ["Junior"]
+
+
+def test_match_lineup_starters_first_then_by_minutes(analytics_dir: Path) -> None:
+    con = dashboard_data.get_connection(analytics_dir)
+    lineup = dashboard_data.match_lineup(con, "m1")
+
+    assert list(lineup["jugador"]) == ["Jugador A", "Jugador B"]
+    assert list(lineup["titular"]) == [True, False]
+
+
+def test_match_lineup_empty_for_match_without_player_data(analytics_dir: Path) -> None:
+    con = dashboard_data.get_connection(analytics_dir)
+    lineup = dashboard_data.match_lineup(con, "m3")  # m3 has tiene_datos_jugadores=False
+    assert lineup.empty
 
 
 def test_position_averages_groups_by_posicion(analytics_dir: Path) -> None:
