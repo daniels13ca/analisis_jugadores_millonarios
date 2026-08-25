@@ -102,6 +102,13 @@ def test_list_helpers(analytics_dir: Path) -> None:
     assert dashboard_data.list_jugadores(con) == ["Jugador A", "Jugador B"]
 
 
+def test_list_match_years(analytics_dir: Path) -> None:
+    con = dashboard_data.get_connection(analytics_dir)
+    # match_results in this fixture are all dated 2024, unlike
+    # player_season_summary above which also has a 2023 row.
+    assert dashboard_data.list_match_years(con) == [2024]
+
+
 def test_match_results_with_form_computes_cumulative_points(analytics_dir: Path) -> None:
     con = dashboard_data.get_connection(analytics_dir)
     result = dashboard_data.match_results_with_form(con)
@@ -122,8 +129,24 @@ def test_points_race_by_year_resets_cumulative_per_year(analytics_dir: Path) -> 
     assert list(race["puntos_acumulados"]) == [3, 4, 4, 4]
 
 
-def test_points_race_by_year_multi_year_resets_and_aligns_by_jornada(tmp_path: Path) -> None:
-    match_results = pd.DataFrame(
+def _write_match_results_only(tmp_path: Path, match_results: pd.DataFrame) -> Path:
+    """Analytics dir with a custom match_results.csv (the other two tables
+    empty) -- for tests that only exercise match_results-based queries.
+    """
+    directory = tmp_path / "analytics"
+    directory.mkdir()
+    match_results.to_csv(directory / "match_results.csv", index=False, encoding="utf-8-sig")
+    pd.DataFrame(columns=["jugador"]).to_csv(
+        directory / "player_match_features.csv", index=False, encoding="utf-8-sig"
+    )
+    pd.DataFrame(columns=["jugador", "anio"]).to_csv(
+        directory / "player_season_summary.csv", index=False, encoding="utf-8-sig"
+    )
+    return directory
+
+
+def _multi_year_match_results() -> pd.DataFrame:
+    return pd.DataFrame(
         {
             "match_id": ["a1", "a2", "b1", "b2", "b3"],
             "fecha": ["2023-02-01", "2023-02-08", "2024-02-01", "2024-02-08", "2024-02-15"],
@@ -138,16 +161,10 @@ def test_points_race_by_year_multi_year_resets_and_aligns_by_jornada(tmp_path: P
             "tiene_datos_jugadores": [True] * 5,
         }
     )
-    directory = tmp_path / "analytics"
-    directory.mkdir()
-    match_results.to_csv(directory / "match_results.csv", index=False, encoding="utf-8-sig")
-    # points_race_by_year only touches match_results, but get_connection needs all three files.
-    pd.DataFrame(columns=["jugador"]).to_csv(
-        directory / "player_match_features.csv", index=False, encoding="utf-8-sig"
-    )
-    pd.DataFrame(columns=["jugador", "anio"]).to_csv(
-        directory / "player_season_summary.csv", index=False, encoding="utf-8-sig"
-    )
+
+
+def test_points_race_by_year_multi_year_resets_and_aligns_by_jornada(tmp_path: Path) -> None:
+    directory = _write_match_results_only(tmp_path, _multi_year_match_results())
 
     con = dashboard_data.get_connection(directory)
     race = dashboard_data.points_race_by_year(con).set_index(["anio", "jornada"])
@@ -158,6 +175,77 @@ def test_points_race_by_year_multi_year_resets_and_aligns_by_jornada(tmp_path: P
     assert race.loc[(2024, 1), "puntos_acumulados"] == 3
     assert race.loc[(2024, 2), "puntos_acumulados"] == 3
     assert race.loc[(2024, 3), "puntos_acumulados"] == 4
+
+
+def test_points_race_by_year_filters_by_anios(tmp_path: Path) -> None:
+    directory = _write_match_results_only(tmp_path, _multi_year_match_results())
+    con = dashboard_data.get_connection(directory)
+
+    race = dashboard_data.points_race_by_year(con, anios=[2024])
+    assert set(race["anio"]) == {2024}
+    assert len(race) == 3
+
+
+def test_match_results_with_form_filters_by_anios(tmp_path: Path) -> None:
+    directory = _write_match_results_only(tmp_path, _multi_year_match_results())
+    con = dashboard_data.get_connection(directory)
+
+    result = dashboard_data.match_results_with_form(con, anios=[2023])
+    assert list(result["fecha"]) == ["2023-02-01", "2023-02-08"]
+
+
+def test_matches_filtered_by_anios(tmp_path: Path) -> None:
+    directory = _write_match_results_only(tmp_path, _multi_year_match_results())
+    con = dashboard_data.get_connection(directory)
+
+    result = dashboard_data.matches_filtered(con, anios=[2023])
+    assert set(result["match_id"]) == {"a1", "a2"}
+
+
+def test_team_summary_filters_by_anios(tmp_path: Path) -> None:
+    directory = _write_match_results_only(tmp_path, _multi_year_match_results())
+    con = dashboard_data.get_connection(directory)
+
+    summary = dashboard_data.team_summary(con, group_by="condicion", anios=[2023])
+    assert summary.loc[0, "partidos"] == 2
+
+
+def test_jornada_calendar_labels_picks_most_common_month(tmp_path: Path) -> None:
+    match_results = pd.DataFrame(
+        {
+            "match_id": ["a1", "a2", "a3", "b1", "b2"],
+            # jornada 1: Jan/Jan -> Jan. jornada 2: Jul/Jun tie -> lower month
+            # (Jun) wins the tiebreak. jornada 3: only 2023 has one -> Dec.
+            "fecha": ["2023-01-15", "2023-07-01", "2023-12-01", "2024-01-20", "2024-06-25"],
+            "campeonato": ["Primera A"] * 5,
+            "rival": ["X"] * 5,
+            "condicion": ["Local"] * 5,
+            "resultado": ["1 - 0"] * 5,
+            "goles_favor": [1] * 5,
+            "goles_contra": [0] * 5,
+            "resultado_partido": ["W"] * 5,
+            "puntos": [3] * 5,
+            "tiene_datos_jugadores": [True] * 5,
+        }
+    )
+    directory = _write_match_results_only(tmp_path, match_results)
+
+    con = dashboard_data.get_connection(directory)
+    labels = dashboard_data.jornada_calendar_labels(con).set_index("jornada")["mes"]
+
+    assert labels.loc[1] == 1
+    assert labels.loc[2] == 6
+    assert labels.loc[3] == 12
+
+
+def test_jornada_calendar_labels_filters_by_anios(tmp_path: Path) -> None:
+    directory = _write_match_results_only(tmp_path, _multi_year_match_results())
+    con = dashboard_data.get_connection(directory)
+
+    labels = dashboard_data.jornada_calendar_labels(con, anios=[2023]).set_index("jornada")["mes"]
+
+    # 2023-only has 2 matches (jornada 1-2), unlike the unfiltered 3.
+    assert set(labels.index) == {1, 2}
 
 
 def test_match_results_with_form_filters_by_campeonato(analytics_dir: Path) -> None:
@@ -200,6 +288,14 @@ def test_player_match_history_ordered_by_fecha(analytics_dir: Path) -> None:
 
     assert list(history["fecha"]) == ["2024-01-01", "2024-01-08", "2024-01-22"]
     assert history["jugador"].eq("Jugador A").all()
+
+
+def test_player_match_history_filters_by_anios(analytics_dir: Path) -> None:
+    con = dashboard_data.get_connection(analytics_dir)
+
+    assert len(dashboard_data.player_match_history(con, "Jugador A", anios=[2024])) == 3
+    # This fixture's player_match_features rows are all dated 2024.
+    assert dashboard_data.player_match_history(con, "Jugador A", anios=[2023]).empty
 
 
 def test_matches_filtered_defaults_to_most_recent_first(analytics_dir: Path) -> None:
@@ -267,3 +363,8 @@ def test_dataset_last_updated_returns_mtime(analytics_dir: Path) -> None:
 
 def test_dataset_last_updated_missing_directory(tmp_path: Path) -> None:
     assert dashboard_data.dataset_last_updated(tmp_path / "nope") is None
+
+
+def test_latest_match_date(analytics_dir: Path) -> None:
+    con = dashboard_data.get_connection(analytics_dir)
+    assert dashboard_data.latest_match_date(con) == "2024-01-22"

@@ -42,7 +42,31 @@ def get_connection(analytics_dir: Path) -> duckdb.DuckDBPyConnection:
     return con
 
 
+def _year_condition(fecha_column: str, anios: list[int] | None) -> tuple[str | None, list[int]]:
+    """SQL condition + params for filtering `fecha_column` by year, or (None, [])
+    if `anios` is falsy. Shared by every match_results/player_match_features
+    query so the global year-range filter (see app.py) behaves identically
+    everywhere.
+    """
+    if not anios:
+        return None, []
+    placeholders = ",".join(["?"] * len(anios))
+    return f"EXTRACT(YEAR FROM CAST({fecha_column} AS DATE)) IN ({placeholders})", list(anios)
+
+
 # --- distinct-value helpers, for populating filter widgets -----------------
+
+
+def list_match_years(con: duckdb.DuckDBPyConnection) -> list[int]:
+    """Every year with at least one match, from match_results (which -- unlike
+    player_season_summary -- also covers matches with no player stats). Used
+    to size the global year-range filter.
+    """
+    rows = con.execute(
+        "SELECT DISTINCT EXTRACT(YEAR FROM CAST(fecha AS DATE))::INTEGER AS anio "
+        "FROM match_results WHERE fecha IS NOT NULL ORDER BY 1"
+    ).df()
+    return [int(value) for value in rows["anio"]]
 
 
 def list_campeonatos(con: duckdb.DuckDBPyConnection) -> list[str]:
@@ -87,6 +111,7 @@ def match_results_with_form(
     con: duckdb.DuckDBPyConnection,
     campeonatos: list[str] | None = None,
     condiciones: list[str] | None = None,
+    anios: list[int] | None = None,
     rolling_window: int = 5,
 ) -> pd.DataFrame:
     """Match results ordered by date, with cumulative points and a rolling
@@ -101,6 +126,10 @@ def match_results_with_form(
     if condiciones:
         where_clauses.append(f"condicion IN ({','.join(['?'] * len(condiciones))})")
         params.extend(condiciones)
+    year_sql, year_params = _year_condition("fecha", anios)
+    if year_sql:
+        where_clauses.append(year_sql)
+        params.extend(year_params)
     where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
 
     query = f"""
@@ -122,6 +151,7 @@ def match_results_with_form(
 def points_race_by_year(
     con: duckdb.DuckDBPyConnection,
     campeonatos: list[str] | None = None,
+    anios: list[int] | None = None,
 ) -> pd.DataFrame:
     """Cumulative points per year, indexed by jornada (matchday-within-year)
     instead of calendar date.
@@ -132,11 +162,16 @@ def points_race_by_year(
     turns it into something you can actually compare: "at this point in the
     season, are we ahead of or behind last year's pace?".
     """
-    where_sql = ""
-    params: list[str] = []
+    where_clauses = []
+    params: list = []
     if campeonatos:
-        where_sql = f"WHERE campeonato IN ({','.join(['?'] * len(campeonatos))})"
-        params = campeonatos
+        where_clauses.append(f"campeonato IN ({','.join(['?'] * len(campeonatos))})")
+        params.extend(campeonatos)
+    year_sql, year_params = _year_condition("fecha", anios)
+    if year_sql:
+        where_clauses.append(year_sql)
+        params.extend(year_params)
+    where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
 
     query = f"""
         WITH partidos AS (
@@ -161,11 +196,64 @@ def points_race_by_year(
     return con.execute(query, params).df()
 
 
+def jornada_calendar_labels(
+    con: duckdb.DuckDBPyConnection,
+    campeonatos: list[str] | None = None,
+    anios: list[int] | None = None,
+) -> pd.DataFrame:
+    """For each jornada (matchday-within-year, see points_race_by_year), the
+    most common calendar month across all years present.
+
+    Used to label the year-over-year points-race chart's x-axis with "which
+    month is this, roughly" context alongside the jornada number, and to
+    place a first/second-half-of-the-year divider. The exact month for a
+    given jornada can drift a bit year to year (schedule isn't identical),
+    so this reports the *typical* one rather than claiming per-year
+    precision.
+    """
+    where_clauses = []
+    params: list = []
+    if campeonatos:
+        where_clauses.append(f"campeonato IN ({','.join(['?'] * len(campeonatos))})")
+        params.extend(campeonatos)
+    year_sql, year_params = _year_condition("fecha", anios)
+    if year_sql:
+        where_clauses.append(year_sql)
+        params.extend(year_params)
+    where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+
+    query = f"""
+        WITH partidos AS (
+            SELECT
+                fecha,
+                EXTRACT(YEAR FROM CAST(fecha AS DATE))::INTEGER AS anio,
+                EXTRACT(MONTH FROM CAST(fecha AS DATE))::INTEGER AS mes
+            FROM match_results
+            {where_sql}
+        ),
+        con_jornada AS (
+            SELECT mes, ROW_NUMBER() OVER (PARTITION BY anio ORDER BY fecha) AS jornada
+            FROM partidos
+        ),
+        conteo AS (
+            SELECT jornada, mes, COUNT(*) AS n
+            FROM con_jornada
+            GROUP BY jornada, mes
+        )
+        SELECT jornada, mes
+        FROM conteo
+        QUALIFY ROW_NUMBER() OVER (PARTITION BY jornada ORDER BY n DESC, mes) = 1
+        ORDER BY jornada
+    """
+    return con.execute(query, params).df()
+
+
 def matches_filtered(
     con: duckdb.DuckDBPyConnection,
     campeonatos: list[str] | None = None,
     condiciones: list[str] | None = None,
     resultados: list[str] | None = None,
+    anios: list[int] | None = None,
 ) -> pd.DataFrame:
     """Match log (fecha, rival, condicion, resultado, ...), most recent first.
 
@@ -173,7 +261,7 @@ def matches_filtered(
     an aggregate. `resultados` filters on resultado_partido (W/D/L).
     """
     where_clauses = []
-    params: list[str] = []
+    params: list = []
     if campeonatos:
         where_clauses.append(f"campeonato IN ({','.join(['?'] * len(campeonatos))})")
         params.extend(campeonatos)
@@ -183,6 +271,10 @@ def matches_filtered(
     if resultados:
         where_clauses.append(f"resultado_partido IN ({','.join(['?'] * len(resultados))})")
         params.extend(resultados)
+    year_sql, year_params = _year_condition("fecha", anios)
+    if year_sql:
+        where_clauses.append(year_sql)
+        params.extend(year_params)
     where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
 
     query = f"SELECT * FROM match_results {where_sql} ORDER BY fecha DESC"
@@ -211,16 +303,22 @@ def team_summary(
     con: duckdb.DuckDBPyConnection,
     group_by: str = "condicion",
     campeonatos: list[str] | None = None,
+    anios: list[int] | None = None,
 ) -> pd.DataFrame:
     """Win/draw/loss record and average points/goals, grouped by condicion or campeonato."""
     if group_by not in _TEAM_SUMMARY_GROUP_COLUMNS:
         raise ValueError(f"group_by debe ser uno de {_TEAM_SUMMARY_GROUP_COLUMNS}")
 
-    where_sql = ""
-    params: list[str] = []
+    where_clauses = []
+    params: list = []
     if campeonatos:
-        where_sql = f"WHERE campeonato IN ({','.join(['?'] * len(campeonatos))})"
-        params = campeonatos
+        where_clauses.append(f"campeonato IN ({','.join(['?'] * len(campeonatos))})")
+        params.extend(campeonatos)
+    year_sql, year_params = _year_condition("fecha", anios)
+    if year_sql:
+        where_clauses.append(year_sql)
+        params.extend(year_params)
+    where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
 
     query = f"""
         SELECT
@@ -256,9 +354,19 @@ def player_season_summary_filtered(
     return dataframe.reset_index(drop=True)
 
 
-def player_match_history(con: duckdb.DuckDBPyConnection, jugador: str) -> pd.DataFrame:
-    query = "SELECT * FROM player_match_features WHERE jugador = ? ORDER BY fecha"
-    return con.execute(query, [jugador]).df()
+def player_match_history(
+    con: duckdb.DuckDBPyConnection,
+    jugador: str,
+    anios: list[int] | None = None,
+) -> pd.DataFrame:
+    where_clauses = ["jugador = ?"]
+    params: list = [jugador]
+    year_sql, year_params = _year_condition("fecha", anios)
+    if year_sql:
+        where_clauses.append(year_sql)
+        params.extend(year_params)
+    query = f"SELECT * FROM player_match_features WHERE {' AND '.join(where_clauses)} ORDER BY fecha"
+    return con.execute(query, params).df()
 
 
 # Ranking metrics it makes sense to average by posicion for benchmarking
@@ -297,3 +405,14 @@ def dataset_last_updated(analytics_dir: Path) -> float | None:
     if not path.exists():
         return None
     return path.stat().st_mtime
+
+
+def latest_match_date(con: duckdb.DuckDBPyConnection) -> str | None:
+    """Most recent match date across the whole dataset (unfiltered).
+
+    Shown next to dataset_last_updated in the sidebar -- together they
+    answer "how current is this data" (when was it refreshed) and "how
+    current is the season" (when was the last match played).
+    """
+    row = con.execute("SELECT MAX(fecha) FROM match_results WHERE fecha IS NOT NULL").fetchone()
+    return row[0] if row else None

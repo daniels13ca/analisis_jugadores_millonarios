@@ -16,6 +16,7 @@ every color/label goes through dashboard/formatting.py.
 from __future__ import annotations
 
 import os
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
@@ -81,7 +82,7 @@ def _inject_style() -> None:
             padding-left: 0.65rem;
             margin-top: 1.4rem !important;
         }
-        h3 { font-weight: 600 !important; }
+        h3 { font-weight: 600 !important; text-align: center; }
 
         /* Pill-style tabs instead of the default underlined ones. */
         div[data-baseweb="tab-list"] {
@@ -112,6 +113,11 @@ def _inject_style() -> None:
         }
         .stat-card {
             flex: 1 1 130px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
             background-color: var(--secondary-background-color);
             border: 1px solid rgba(10, 61, 145, 0.15);
             border-radius: 0.75rem;
@@ -123,8 +129,9 @@ def _inject_style() -> None:
 
         .wdl-card { flex: 2 1 260px; padding: 0.7rem 0.85rem 0.85rem 0.85rem; }
         .wdl-card .stat-label { margin-bottom: 0.45rem; }
-        .wdl-row { display: flex; gap: 0.5rem; }
-        .wdl-item { flex: 1; text-align: center; border-radius: 0.55rem; padding: 0.4rem 0.25rem; }
+        .wdl-row { display: flex; gap: 0.5rem; width: 100%; }
+        .wdl-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+                    text-align: center; border-radius: 0.55rem; padding: 0.4rem 0.25rem; }
         .wdl-value { display: block; font-size: 1.3rem; font-weight: 700; }
         .wdl-sub { display: block; font-size: 0.62rem; font-weight: 600; text-transform: uppercase;
                    letter-spacing: 0.03em; opacity: 0.8; margin-top: 0.1rem; }
@@ -171,21 +178,16 @@ def _stat_card_row(cards: list[dict]) -> None:
 
 
 def _stat_card_row_with_wdl(cards: list[dict], victorias: int, empates: int, derrotas: int) -> None:
-    """Like _stat_card_row, but appends a compound card with 3 nested W/D/L mini-cards.
+    """Like _stat_card_row, but leads with a compound card with 3 nested W/D/L mini-cards.
 
     A single "12 / 8 / 5" metric label is hard to scan; nesting a nicely
     colored mini-card per outcome inside one wider card reads at a glance
     and matches the win/draw/loss color coding used everywhere else in the
-    dashboard (see formatting.RESULT_COLORS).
+    dashboard (see formatting.RESULT_COLORS). It leads the row since it's
+    the compound/most-important card.
     """
-    parts = ['<div class="stat-card-row">']
-    for card in cards:
-        icon = f"{card['icon']} " if card.get("icon") else ""
-        parts.append(
-            f'<div class="stat-card"><span class="stat-value">{icon}{card["value"]}</span>'
-            f'<span class="stat-label">{card["label"]}</span></div>'
-        )
-    parts.append(
+    parts = [
+        '<div class="stat-card-row">'
         '<div class="stat-card wdl-card"><span class="stat-label">Resultados</span>'
         '<div class="wdl-row">'
         f'<div class="wdl-item wdl-win"><span class="wdl-value">{victorias}</span>'
@@ -195,7 +197,13 @@ def _stat_card_row_with_wdl(cards: list[dict], victorias: int, empates: int, der
         f'<div class="wdl-item wdl-loss"><span class="wdl-value">{derrotas}</span>'
         '<span class="wdl-sub">Perdidos</span></div>'
         "</div></div>"
-    )
+    ]
+    for card in cards:
+        icon = f"{card['icon']} " if card.get("icon") else ""
+        parts.append(
+            f'<div class="stat-card"><span class="stat-value">{icon}{card["value"]}</span>'
+            f'<span class="stat-label">{card["label"]}</span></div>'
+        )
     parts.append("</div>")
     st.markdown("".join(parts), unsafe_allow_html=True)
 
@@ -205,23 +213,110 @@ def _connection(analytics_dir: str):
     return dashboard_data.get_connection(Path(analytics_dir))
 
 
-def _render_sidebar() -> None:
+def _render_chart(fig: go.Figure) -> None:
+    """st.plotly_chart with the title centered -- Plotly left-aligns titles
+    by default, which read as off-balance next to the rest of the (centered)
+    UI.
+    """
+    fig.update_layout(title_x=0.5, title_xanchor="center")
+    st.plotly_chart(fig, width="stretch")
+
+
+@dataclass
+class Filters:
+    """Every filter selection from the sidebar, threaded down into each tab.
+
+    Widgets live in the sidebar (one shared place, visible no matter which
+    tab is open) instead of scattered across tabs. Campeonato/condicion are
+    shared by the Equipo and Partidos tabs since they mean the same thing in
+    both; the rest are specific to a single tab, tagged in their sidebar
+    label to say so.
+    """
+
+    anios: list[int] | None
+    campeonatos: list[str] | None
+    condiciones: list[str] | None
+    resultados: list[str] | None
+    posiciones: list[str] | None
+    jugador_ficha: str | None
+    jugadores_comparador: list[str]
+    goles_anio: int | None
+
+
+def _render_sidebar(con) -> Filters:
+    """Sidebar: a title, the two dataset-freshness dates, and every filter
+    control -- grouped as team/match filters (which apply to Equipo and
+    Partidos) then, past a divider, player filters (Ranking, Ficha,
+    Comparador). No other text.
+    """
     with st.sidebar:
-        st.header("⚽ Millonarios FC")
-        st.caption(f"Datos: `{ANALYTICS_DIR}`")
+        st.header("Análisis de rendimiento — Millonarios FC")
+
         last_updated = dashboard_data.dataset_last_updated(ANALYTICS_DIR)
         if last_updated is not None:
             st.caption(f"Última actualización: {datetime.fromtimestamp(last_updated):%Y-%m-%d %H:%M}")
-        st.caption(
-            "Para refrescar con datos nuevos: `python -m millos_data refresh` "
-            "(corre consolidate + build-analytics + validate-analytics de una)."
+        latest_match = dashboard_data.latest_match_date(con)
+        if latest_match:
+            st.caption(f"Fecha del último partido: {latest_match}")
+
+        # --- Equipo / Partidos ---
+        anios_disponibles = dashboard_data.list_match_years(con)
+        if not anios_disponibles:
+            anios = None
+        elif len(anios_disponibles) == 1:
+            anios = anios_disponibles
+        else:
+            anio_min, anio_max = min(anios_disponibles), max(anios_disponibles)
+            anio_inicio, anio_fin = st.slider(
+                "Rango de años",
+                min_value=anio_min,
+                max_value=anio_max,
+                value=(anio_min, anio_max),
+            )
+            anios = list(range(anio_inicio, anio_fin + 1))
+
+        campeonatos = dashboard_data.list_campeonatos(con)
+        selected_campeonatos = st.multiselect("Campeonato", campeonatos, default=campeonatos)
+
+        condiciones = dashboard_data.list_condiciones(con)
+        selected_condiciones = st.multiselect("Condición", condiciones, default=condiciones)
+
+        selected_resultados = st.multiselect(
+            "Resultado (Partidos)",
+            ["W", "D", "L"],
+            default=["W", "D", "L"],
+            format_func=fmt.result_label,
+        )
+
+        goles_anio = st.selectbox("Año (Gráfico de goles)", anios, index=len(anios) - 1) if anios else None
+
+        st.divider()
+
+        # --- Ranking / Ficha de jugador / Comparador ---
+        posiciones = dashboard_data.list_posiciones(con)
+        selected_posiciones = st.multiselect(
+            "Posición (Ranking)", posiciones, default=posiciones, format_func=fmt.position_label
+        )
+
+        jugadores = dashboard_data.list_jugadores(con)
+        jugador_ficha = st.selectbox("Jugador (Ficha)", jugadores) if jugadores else None
+        jugadores_comparador = st.multiselect("Jugadores (Comparador)", jugadores)
+
+        return Filters(
+            anios=anios,
+            campeonatos=selected_campeonatos or None,
+            condiciones=selected_condiciones or None,
+            resultados=selected_resultados or None,
+            posiciones=selected_posiciones or None,
+            jugador_ficha=jugador_ficha,
+            jugadores_comparador=jugadores_comparador,
+            goles_anio=goles_anio,
         )
 
 
 def main() -> None:
     _inject_style()
     st.title("⚽ Millonarios FC — Rendimiento")
-    _render_sidebar()
 
     if not (ANALYTICS_DIR / "match_results.csv").exists():
         st.error(
@@ -231,64 +326,71 @@ def main() -> None:
         st.stop()
 
     con = _connection(str(ANALYTICS_DIR))
+    filters = _render_sidebar(con)
 
     tab_equipo, tab_partidos, tab_ranking, tab_jugador, tab_comparador = st.tabs(
         ["📊 Equipo", "📋 Partidos", "🏆 Ranking de jugadores", "🔎 Ficha de jugador", "⚖️ Comparador"]
     )
 
     with tab_equipo:
-        _render_team_tab(con)
+        _render_team_tab(con, filters)
     with tab_partidos:
-        _render_matches_tab(con)
+        _render_matches_tab(con, filters)
     with tab_ranking:
-        _render_ranking_tab(con)
+        _render_ranking_tab(con, filters)
     with tab_jugador:
-        _render_player_profile_tab(con)
+        _render_player_profile_tab(con, filters)
     with tab_comparador:
-        _render_comparator_tab(con)
+        _render_comparator_tab(con, filters)
+
+
+FORM_ROLLING_WINDOW = 10
 
 
 def _form_chart(resultados: pd.DataFrame) -> go.Figure:
-    """Match-by-match points (bar, colored win/draw/loss) with the rolling
-    "forma reciente" average overlaid as a line.
+    """Forma reciente (rolling average, 10-game window) as a single smoothed
+    line, with each match's actual result colored on its marker.
 
-    Replaces a plain all-time cumulative-points line, which only ever climbs
-    and doesn't say much on its own -- this shows the actual sequence of
-    results (won/drawn/lost, at a glance by color) *and* the smoothed trend
-    in one chart.
+    A bar per match (one earlier version of this chart) turns into a
+    dense, hard-to-read blur once there are ~200 matches spanning several
+    years -- there just isn't enough horizontal room per bar. A wider
+    rolling window (10 games instead of 5) plus a single line keeps the
+    trend readable at this density; the colored markers keep a hint of
+    each match's actual result without reintroducing the clutter.
     """
     colors = resultados["resultado_partido"].map(fmt.RESULT_COLORS).fillna("#9AA5B1")
     hover_customdata = resultados[["rival", "resultado"]].to_numpy()
 
     fig = go.Figure()
-    fig.add_bar(
-        x=resultados["fecha"],
-        y=resultados["puntos"],
-        marker_color=colors,
-        name="Puntos por partido",
-        customdata=hover_customdata,
-        hovertemplate="%{x}<br>vs %{customdata[0]} (%{customdata[1]})<br>Puntos: %{y}<extra></extra>",
-    )
     fig.add_scatter(
         x=resultados["fecha"],
         y=resultados["forma_reciente"],
-        mode="lines",
-        name="Forma (promedio móvil, 5 partidos)",
+        mode="lines+markers",
+        name="Forma reciente",
         line=dict(color=fmt.PRIMARY_COLOR, width=3),
-        hovertemplate="%{x}<br>Forma reciente: %{y:.2f}<extra></extra>",
+        marker=dict(color=colors, size=7, line=dict(width=1, color="white")),
+        fill="tozeroy",
+        fillcolor="rgba(10, 61, 145, 0.08)",
+        customdata=hover_customdata,
+        hovertemplate="%{x}<br>vs %{customdata[0]} (%{customdata[1]})<br>Forma: %{y:.2f}<extra></extra>",
     )
     fig.update_layout(
-        title="Racha de resultados y forma reciente",
-        yaxis_title="Puntos",
+        title=f"Forma reciente (Promedio móvil, últimos {FORM_ROLLING_WINDOW} partidos)",
+        yaxis_title="Puntos promedio",
         xaxis_title="",
-        yaxis=dict(range=[0, 3.4], dtick=1),
-        legend=dict(orientation="h", yanchor="bottom", y=1.05, xanchor="right", x=1),
-        margin=dict(t=80),
+        yaxis=dict(range=[0, 3.2]),
+        showlegend=False,
+        margin=dict(t=60),
     )
     return fig
 
 
-def _points_race_chart(race: pd.DataFrame) -> go.Figure:
+def _points_race_chart(race: pd.DataFrame, calendar_labels: pd.DataFrame) -> go.Figure:
+    """Cumulative points per year (see points_race_by_year), with the x-axis
+    labeled by month (not jornada -- one tick per jornada was too cramped
+    with up to ~77 of them), and a dashed divider marking the 30-jun
+    boundary between first/second half of the year.
+    """
     race = race.astype({"anio": str})
     fig = px.line(
         race,
@@ -296,28 +398,45 @@ def _points_race_chart(race: pd.DataFrame) -> go.Figure:
         y="puntos_acumulados",
         color="anio",
         markers=True,
-        title="Puntos acumulados por año (comparación de ritmo)",
+        title="Puntos acumulados por año (Comparación de ritmo)",
         labels={"jornada": "Jornada", "puntos_acumulados": "Puntos acumulados", "anio": "Año"},
         color_discrete_sequence=fmt.YEAR_COLOR_SEQUENCE,
     )
     fig.update_layout(legend_title_text="Año")
+
+    if not calendar_labels.empty:
+        calendar_labels = calendar_labels.sort_values("jornada")
+        # One tick per jornada was too cramped to read; collapse consecutive
+        # jornadas that share the same typical month into a single tick, at
+        # the jornada where that month starts, labeled with only the month.
+        month_starts = calendar_labels[calendar_labels["mes"] != calendar_labels["mes"].shift(1)]
+        tickvals = month_starts["jornada"].tolist()
+        ticktext = [fmt.MES_ABBR[mes - 1] for mes in month_starts["mes"]]
+        fig.update_xaxes(tickvals=tickvals, ticktext=ticktext)
+
+        primer_semestre = calendar_labels[calendar_labels["mes"] <= 6]
+        if not primer_semestre.empty and len(primer_semestre) < len(calendar_labels):
+            divider_x = primer_semestre["jornada"].max() + 0.5
+            fig.add_vline(
+                x=divider_x,
+                line_dash="dash",
+                line_color="rgba(0, 0, 0, 0.35)",
+                annotation_text="30 jun",
+                annotation_position="top",
+            )
+
     return fig
 
 
-def _render_team_tab(con) -> None:
+def _render_team_tab(con, filters: Filters) -> None:
     st.header("Resumen de equipo")
-
-    campeonatos = dashboard_data.list_campeonatos(con)
-    condiciones = dashboard_data.list_condiciones(con)
-
-    col1, col2 = st.columns(2)
-    selected_campeonatos = col1.multiselect("Campeonato", campeonatos, default=campeonatos, key="equipo_campeonato")
-    selected_condiciones = col2.multiselect("Condición", condiciones, default=condiciones, key="equipo_condicion")
 
     resultados = dashboard_data.match_results_with_form(
         con,
-        campeonatos=selected_campeonatos or None,
-        condiciones=selected_condiciones or None,
+        campeonatos=filters.campeonatos,
+        condiciones=filters.condiciones,
+        anios=filters.anios,
+        rolling_window=FORM_ROLLING_WINDOW,
     )
 
     if resultados.empty:
@@ -340,35 +459,47 @@ def _render_team_tab(con) -> None:
         derrotas=derrotas,
     )
 
-    st.plotly_chart(_form_chart(resultados), width="stretch")
+    _render_chart(_form_chart(resultados))
 
-    race = dashboard_data.points_race_by_year(con, campeonatos=selected_campeonatos or None)
+    race = dashboard_data.points_race_by_year(con, campeonatos=filters.campeonatos, anios=filters.anios)
     if race["anio"].nunique() > 1:
-        st.plotly_chart(_points_race_chart(race), width="stretch")
+        calendar_labels = dashboard_data.jornada_calendar_labels(
+            con, campeonatos=filters.campeonatos, anios=filters.anios
+        )
+        _render_chart(_points_race_chart(race, calendar_labels))
     else:
         st.caption(
             "La comparación de ritmo por año aparece cuando hay partidos de más de un año "
             "en los filtros seleccionados."
         )
 
-    st.plotly_chart(
+    if filters.goles_anio is not None:
+        goles_df = resultados[
+            pd.to_datetime(resultados["fecha"], errors="coerce").dt.year == filters.goles_anio
+        ]
+        goles_titulo = f"Goles a favor / En contra por partido — {filters.goles_anio}"
+    else:
+        goles_df = resultados
+        goles_titulo = "Goles a favor / En contra por partido"
+
+    goles_df = goles_df.rename(columns=fmt.GOALS_FOR_AGAINST_RENAME)
+    _render_chart(
         px.bar(
-            resultados,
+            goles_df,
             x="fecha",
-            y=["goles_favor", "goles_contra"],
-            barmode="group",
-            title="Goles a favor / en contra por partido",
+            y=list(fmt.GOALS_FOR_AGAINST_RENAME.values()),
+            barmode="stack",
+            title=goles_titulo,
             color_discrete_map=fmt.GOALS_FOR_AGAINST_COLORS,
             labels={"value": "Goles", "variable": "", "fecha": "Fecha"},
-        ),
-        width="stretch",
+        )
     )
 
     col1, col2 = st.columns(2)
     with col1:
         st.subheader("Por condición")
         por_condicion = dashboard_data.team_summary(
-            con, group_by="condicion", campeonatos=selected_campeonatos or None
+            con, group_by="condicion", campeonatos=filters.campeonatos, anios=filters.anios
         )
         st.dataframe(
             por_condicion.assign(condicion=por_condicion["condicion"].map(fmt.condition_label)),
@@ -378,7 +509,7 @@ def _render_team_tab(con) -> None:
         )
     with col2:
         st.subheader("Por campeonato")
-        por_campeonato = dashboard_data.team_summary(con, group_by="campeonato")
+        por_campeonato = dashboard_data.team_summary(con, group_by="campeonato", anios=filters.anios)
         st.dataframe(
             por_campeonato,
             width="stretch",
@@ -394,39 +525,22 @@ def _team_summary_column_config(group_column: str, group_label: str) -> dict:
         "victorias": st.column_config.NumberColumn("🟢 G", format="%d"),
         "empates": st.column_config.NumberColumn("🟡 E", format="%d"),
         "derrotas": st.column_config.NumberColumn("🔴 P", format="%d"),
-        "puntos_promedio": st.column_config.NumberColumn("Puntos/partido", format="%.2f"),
-        "goles_favor_promedio": st.column_config.NumberColumn("GF/partido", format="%.2f"),
-        "goles_contra_promedio": st.column_config.NumberColumn("GC/partido", format="%.2f"),
+        "puntos_promedio": st.column_config.NumberColumn("Puntos/Partido", format="%.2f"),
+        "goles_favor_promedio": st.column_config.NumberColumn("GF/Partido", format="%.2f"),
+        "goles_contra_promedio": st.column_config.NumberColumn("GC/Partido", format="%.2f"),
     }
 
 
-def _render_matches_tab(con) -> None:
+def _render_matches_tab(con, filters: Filters) -> None:
     st.header("Detalle de partidos")
     st.caption("Fecha, rival, condición y resultado de cada partido, con la planilla del que elijas.")
 
-    campeonatos = dashboard_data.list_campeonatos(con)
-    condiciones = dashboard_data.list_condiciones(con)
-
-    col1, col2, col3 = st.columns(3)
-    selected_campeonatos = col1.multiselect(
-        "Campeonato", campeonatos, default=campeonatos, key="partidos_campeonato"
-    )
-    selected_condiciones = col2.multiselect(
-        "Condición", condiciones, default=condiciones, key="partidos_condicion"
-    )
-    selected_resultados = col3.multiselect(
-        "Resultado",
-        ["W", "D", "L"],
-        default=["W", "D", "L"],
-        format_func=fmt.result_label,
-        key="partidos_resultado",
-    )
-
     partidos = dashboard_data.matches_filtered(
         con,
-        campeonatos=selected_campeonatos or None,
-        condiciones=selected_condiciones or None,
-        resultados=selected_resultados or None,
+        campeonatos=filters.campeonatos,
+        condiciones=filters.condiciones,
+        resultados=filters.resultados,
+        anios=filters.anios,
     )
 
     if partidos.empty:
@@ -480,7 +594,7 @@ def _render_matches_tab(con) -> None:
         return
 
     st.dataframe(
-        lineup,
+        lineup.assign(posicion=lineup["posicion"].map(fmt.position_label)),
         width="stretch",
         hide_index=True,
         column_config={
@@ -508,21 +622,15 @@ def _render_matches_tab(con) -> None:
     )
 
 
-def _render_ranking_tab(con) -> None:
+def _render_ranking_tab(con, filters: Filters) -> None:
     st.header("Ranking de jugadores")
 
-    anios = dashboard_data.list_anios(con)
-    posiciones = dashboard_data.list_posiciones(con)
-
-    col1, col2, col3 = st.columns(3)
-    selected_anios = col1.multiselect("Año", anios, default=anios, key="ranking_anio")
-    selected_posiciones = col2.multiselect("Posición", posiciones, default=posiciones, key="ranking_posicion")
-    metric = col3.selectbox("Ordenar / graficar por", list(RANKING_METRICS), format_func=RANKING_METRICS.get)
+    metric = st.selectbox("Ordenar / Graficar por", list(RANKING_METRICS), format_func=RANKING_METRICS.get)
 
     summary = dashboard_data.player_season_summary_filtered(
         con,
-        anios=selected_anios or None,
-        posiciones=selected_posiciones or None,
+        anios=filters.anios,
+        posiciones=filters.posiciones,
     )
 
     if summary.empty:
@@ -531,8 +639,9 @@ def _render_ranking_tab(con) -> None:
 
     # Benchmark against the position average for the chosen metric, not the
     # whole squad -- a center-back and a forward shouldn't share a
-    # goles_por90 scale. Averages use the same anio filter as the table.
-    pos_avg = dashboard_data.position_averages(con, anios=selected_anios or None)
+    # goles_por90 scale. Averages use the same (global) anio filter as the
+    # table.
+    pos_avg = dashboard_data.position_averages(con, anios=filters.anios)
     if metric in pos_avg.columns:
         avg_by_posicion = pos_avg.set_index("posicion")[metric]
         summary = summary.assign(
@@ -541,22 +650,24 @@ def _render_ranking_tab(con) -> None:
         summary["vs_promedio_posicion"] = summary[metric] - summary["promedio_posicion"]
 
     summary_sorted = summary.sort_values(metric, ascending=False, na_position="last")
+    summary_display = summary_sorted.assign(posicion=summary_sorted["posicion"].map(fmt.position_label))
     st.dataframe(
-        summary_sorted,
+        summary_display,
         width="stretch",
         hide_index=True,
         column_config=RANKING_COLUMN_CONFIG,
     )
     st.download_button(
         "⬇️ Descargar tabla (CSV)",
-        data=summary_sorted.to_csv(index=False).encode("utf-8-sig"),
+        data=summary_display.to_csv(index=False).encode("utf-8-sig"),
         file_name="ranking_jugadores.csv",
         mime="text/csv",
     )
 
-    with st.expander("Promedio por posición (todas las métricas)"):
+    with st.expander("Promedio por posición (Todas las métricas)"):
+        pos_avg_display = pos_avg.assign(posicion=pos_avg["posicion"].map(fmt.position_label))
         st.dataframe(
-            pos_avg,
+            pos_avg_display,
             width="stretch",
             hide_index=True,
             column_config={**RANKING_COLUMN_CONFIG, "posicion": st.column_config.TextColumn("Posición")},
@@ -565,7 +676,7 @@ def _render_ranking_tab(con) -> None:
     top = summary_sorted.dropna(subset=[metric]).head(15)
     if not top.empty:
         top = top.assign(jugador_anio=top["jugador"] + " (" + top["anio"].astype(str) + ")")
-        st.plotly_chart(
+        _render_chart(
             px.bar(
                 top,
                 x="jugador_anio",
@@ -573,25 +684,22 @@ def _render_ranking_tab(con) -> None:
                 title=f"Top 15 — {RANKING_METRICS[metric]}",
                 color_discrete_sequence=[fmt.PRIMARY_COLOR],
                 labels={"jugador_anio": "", metric: RANKING_METRICS[metric]},
-            ),
-            width="stretch",
+            )
         )
 
 
-def _render_player_profile_tab(con) -> None:
+def _render_player_profile_tab(con, filters: Filters) -> None:
     st.header("Ficha de jugador")
 
-    jugadores = dashboard_data.list_jugadores(con)
-    if not jugadores:
+    if filters.jugador_ficha is None:
         st.info("No hay jugadores disponibles.")
         return
 
-    jugador = st.selectbox("Jugador", jugadores)
-    historial = dashboard_data.player_match_history(con, jugador)
+    historial = dashboard_data.player_match_history(con, filters.jugador_ficha, anios=filters.anios)
     jugados = historial[historial["jugo"].fillna(False)]
 
     if jugados.empty:
-        st.info(f"{jugador} no registra minutos jugados en los datos disponibles.")
+        st.info(f"{filters.jugador_ficha} no registra minutos jugados en los datos disponibles.")
         return
 
     c1, c2, c3 = st.columns(3)
@@ -603,7 +711,7 @@ def _render_player_profile_tab(con) -> None:
         f"{calificacion_promedio:.2f}" if pd.notna(calificacion_promedio) else "n/d",
     )
 
-    st.plotly_chart(
+    _render_chart(
         px.line(
             jugados,
             x="fecha",
@@ -611,36 +719,35 @@ def _render_player_profile_tab(con) -> None:
             markers=True,
             title="Calificación por partido",
             color_discrete_sequence=[fmt.PRIMARY_COLOR],
-        ),
-        width="stretch",
+            labels={"calificacion": "Calificación", "fecha": "Fecha"},
+        )
     )
-    st.plotly_chart(
+    _render_chart(
         px.bar(
             jugados,
             x="fecha",
             y="minutos",
             title="Minutos jugados por partido",
             color_discrete_sequence=[fmt.ACCENT_COLOR],
-        ),
-        width="stretch",
+            labels={"minutos": "Minutos", "fecha": "Fecha"},
+        )
     )
 
 
-def _render_comparator_tab(con) -> None:
-    st.header("Comparador de jugadores / temporadas")
+def _render_comparator_tab(con, filters: Filters) -> None:
+    st.header("Comparador de jugadores / Temporadas")
     st.caption(
-        "Elegí 2 o más filas (jugador x año) para comparar. Para comparar un jugador contra sí "
-        "mismo en otra temporada, seleccionalo y después filtrá por año en la tabla de abajo."
+        "Elegí 2 o más jugadores en el sidebar para comparar. Para comparar un jugador contra sí "
+        "mismo en otra temporada, seleccionalo y después filtrá por año con el rango del sidebar."
     )
 
-    jugadores = dashboard_data.list_jugadores(con)
-    seleccionados = st.multiselect("Jugadores", jugadores)
-
-    if len(seleccionados) < 1:
-        st.info("Selecciona al menos un jugador.")
+    if len(filters.jugadores_comparador) < 1:
+        st.info("Selecciona al menos un jugador en el sidebar.")
         return
 
-    comparacion = dashboard_data.player_season_summary_filtered(con, jugadores=seleccionados)
+    comparacion = dashboard_data.player_season_summary_filtered(
+        con, jugadores=filters.jugadores_comparador, anios=filters.anios
+    )
     if comparacion.empty:
         st.info("No hay datos de temporada para la selección.")
         return
@@ -648,15 +755,16 @@ def _render_comparator_tab(con) -> None:
     comparacion = comparacion.assign(
         jugador_anio=comparacion["jugador"] + " (" + comparacion["anio"].astype(str) + ")"
     )
+    comparacion_display = comparacion.assign(posicion=comparacion["posicion"].map(fmt.position_label))
     st.dataframe(
-        comparacion.drop(columns=["jugador_anio"]),
+        comparacion_display.drop(columns=["jugador_anio"]),
         width="stretch",
         hide_index=True,
         column_config=RANKING_COLUMN_CONFIG,
     )
     st.download_button(
         "⬇️ Descargar comparación (CSV)",
-        data=comparacion.drop(columns=["jugador_anio"]).to_csv(index=False).encode("utf-8-sig"),
+        data=comparacion_display.drop(columns=["jugador_anio"]).to_csv(index=False).encode("utf-8-sig"),
         file_name="comparacion_jugadores.csv",
         mime="text/csv",
     )
@@ -667,7 +775,7 @@ def _render_comparator_tab(con) -> None:
         format_func=RANKING_METRICS.get,
         key="comparador_metric",
     )
-    st.plotly_chart(
+    _render_chart(
         px.bar(
             comparacion,
             x="jugador_anio",
@@ -675,8 +783,7 @@ def _render_comparator_tab(con) -> None:
             title=f"Comparación — {RANKING_METRICS[metric]}",
             color_discrete_sequence=[fmt.PRIMARY_COLOR],
             labels={"jugador_anio": "", metric: RANKING_METRICS[metric]},
-        ),
-        width="stretch",
+        )
     )
 
 

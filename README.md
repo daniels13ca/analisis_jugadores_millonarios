@@ -270,24 +270,46 @@ python -m millos_data dashboard
 ```
 
 Abre el dashboard en el navegador (puerto 8501 por defecto, `--port` para cambiarlo). Usa un tema
-propio (`.streamlit/config.toml`, azul/blanco de Millonarios) en vez del Streamlit por defecto. El
-sidebar muestra la carpeta de datos y cuando se actualizaron por ultima vez (mtime de
-`match_results.csv`). Tiene 5 vistas (ver [docs/analytics_kpis.md](docs/analytics_kpis.md) para la
-prioridad detras de cada una):
+propio (`.streamlit/config.toml` + CSS inyectado en `app.py`: tipografia Inter, tabs tipo pildora,
+cards con valores centrados) en vez del Streamlit por defecto.
 
-1. **Equipo**: puntos acumulados, forma reciente (promedio movil de 5 partidos), goles a favor/en
-   contra por partido, resumen por condicion (local/visitante) y por campeonato.
+**Todos los filtros viven en el sidebar** (no hay controles sueltos dentro de las pestañas), que
+por lo demas solo muestra un titulo y dos fechas — cuando se actualizaron los datos y la fecha del
+ultimo partido — sin texto adicional. Los filtros de equipo/partidos van primero, despues un
+separador, despues los de jugadores:
+
+- `Rango de años`: el unico filtro que aplica a las 5 vistas a la vez.
+- `Campeonato` / `Condición`: compartidos entre Equipo y Partidos (mismo significado en ambas).
+- `Resultado (Partidos)`, `Año (Gráfico de goles)`: especificos de Equipo/Partidos.
+- *(separador)*
+- `Posición (Ranking)`, `Jugador (Ficha)`, `Jugadores (Comparador)`: especificos de cada vista de
+  jugadores.
+
+Las posiciones (`D`/`F`/`G`/`M`, tal como las devuelve la API) se muestran siempre traducidas
+(Defensa/Delantero/Arquero/Mediocampista — `formatting.POSITION_LABELS`) en el filtro y en toda
+tabla que las incluya; los datos subyacentes (filtros, promedios por posicion) siguen usando el
+codigo original.
+
+Dentro de cada pestaña solo quedan los controles que no son "filtros" sino opciones de vista (que
+metrica graficar, que partido puntual ver la planilla) — ver
+[docs/analytics_kpis.md](docs/analytics_kpis.md) para la prioridad detras de cada vista:
+
+1. **Equipo**: card de resultados (ganados/empatados/perdidos), forma reciente (promedio movil de
+   10 partidos, con marcadores coloreados por resultado), puntos acumulados por año (comparacion
+   de ritmo entre temporadas, eje X por mes), goles a favor/en contra por partido (barras
+   apiladas), resumen por condicion (local/visitante) y por campeonato.
 2. **Partidos**: el detalle partido a partido — fecha, rival, condicion (🏠/✈️), marcador y
-   resultado (🟢/🟡/🔴), filtrable por campeonato/condicion/resultado. Eligiendo un partido se ve
-   su planilla completa (titulares/suplentes, minutos, calificacion, goles, y el resto de las
-   stats de cada jugador en ese partido).
-3. **Ranking de jugadores**: tabla y grafico de barras ordenable por goles/asistencias por 90',
-   calificacion promedio, minutos, % de duelos ganados, filtrable por anio y posicion — con el
-   promedio de la posicion como referencia (`promedio_posicion` / `vs_promedio_posicion`) y boton
-   de descarga a CSV.
-4. **Ficha de jugador**: calificacion y minutos partido a partido para un jugador elegido.
-5. **Comparador**: 2+ jugadores (o el mismo jugador en distintos anios) lado a lado, con descarga
-   a CSV.
+   resultado (🟢/🟡/🔴). Con el selector "Partido" (dentro de la pestaña, no es un filtro) se ve
+   la planilla completa de ese partido (titulares/suplentes, minutos, calificacion, goles, y el
+   resto de las stats de cada jugador).
+3. **Ranking de jugadores**: tabla y grafico de barras ordenable (selector "Ordenar / Graficar
+   por", dentro de la pestaña) por goles/asistencias por 90', calificacion promedio, minutos, % de
+   duelos ganados — con el promedio de la posicion como referencia (`promedio_posicion` /
+   `vs_promedio_posicion`) y boton de descarga a CSV.
+4. **Ficha de jugador**: calificacion y minutos partido a partido para el jugador elegido en el
+   sidebar.
+5. **Comparador**: los jugadores elegidos en el sidebar, lado a lado (2+ jugadores, o el mismo
+   jugador en distintos años usando el rango del sidebar), con descarga a CSV.
 
 Si preferis apuntar a otra carpeta de analitica (por ejemplo para probar con datos de otra
 temporada sin pisar la carpeta `analytics/` principal):
