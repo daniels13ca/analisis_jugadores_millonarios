@@ -96,10 +96,12 @@ def test_app_renders_without_exceptions(analytics_dir: Path) -> None:
     assert not at.exception
     assert any("Millonarios FC" in title.value for title in at.title)
 
-    # "Partidos" is the 2nd tab: match log table + per-match lineup selector.
+    # "Partidos" is the 2nd tab: "Histórico de Partidos" (row-selectable) +
+    # "Planilla individual de partido", defaulting to the most recent match.
     tab_partidos = at.tabs[1]
-    assert len(tab_partidos.dataframe) >= 1
-    assert len(tab_partidos.selectbox) >= 1
+    assert len(tab_partidos.dataframe) == 2
+    assert any("Histórico de Partidos" in s.value for s in tab_partidos.subheader)
+    assert any("Planilla individual de partido" in s.value for s in tab_partidos.subheader)
 
 
 def test_app_shows_error_when_analytics_dir_missing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

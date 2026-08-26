@@ -322,12 +322,72 @@ def test_matches_filtered_combines_filters(analytics_dir: Path) -> None:
     assert list(matches["rival"]) == ["Junior"]
 
 
-def test_match_lineup_starters_first_then_by_minutes(analytics_dir: Path) -> None:
+def test_match_lineup_orders_by_position_then_titular(analytics_dir: Path) -> None:
     con = dashboard_data.get_connection(analytics_dir)
     lineup = dashboard_data.match_lineup(con, "m1")
 
-    assert list(lineup["jugador"]) == ["Jugador A", "Jugador B"]
-    assert list(lineup["titular"]) == [True, False]
+    # m1 has "Jugador A" (posicion F) and "Jugador B" (posicion M); M ranks
+    # before F in the arquero/defensa/mediocampista/delantero order.
+    assert list(lineup["jugador"]) == ["Jugador B", "Jugador A"]
+    assert list(lineup["posicion"]) == ["M", "F"]
+
+
+def test_match_lineup_full_position_order(tmp_path: Path) -> None:
+    match_results = pd.DataFrame(
+        {
+            "match_id": ["m1"],
+            "fecha": ["2024-01-01"],
+            "campeonato": ["Primera A"],
+            "rival": ["Junior"],
+            "condicion": ["Local"],
+            "resultado": ["1 - 0"],
+            "goles_favor": [1],
+            "goles_contra": [0],
+            "resultado_partido": ["W"],
+            "puntos": [3],
+            "tiene_datos_jugadores": [True],
+        }
+    )
+    player_match_features = pd.DataFrame(
+        {
+            "match_id": ["m1", "m1", "m1", "m1"],
+            "jugador": ["Delantero1", "Arquero1", "Defensa1", "Mediocampista1"],
+            "posicion": ["F", "G", "D", "M"],
+            "titular": [True, True, True, True],
+            "minutos": [90, 90, 90, 90],
+            "calificacion": [7.0, 7.0, 7.0, 7.0],
+            "goles": [0, 0, 0, 0],
+            "asistencias": [0, 0, 0, 0],
+            "remates_totales": [0, 0, 0, 0],
+            "remates_al_arco": [0, 0, 0, 0],
+            "pases_totales": [0, 0, 0, 0],
+            "pases_precision": ["0%", "0%", "0%", "0%"],
+            "entradas": [0, 0, 0, 0],
+            "intercepciones": [0, 0, 0, 0],
+            "despejes": [0, 0, 0, 0],
+            "duelos_totales": [0, 0, 0, 0],
+            "duelos_ganados": [0, 0, 0, 0],
+            "faltas_cometidas": [0, 0, 0, 0],
+            "faltas_recibidas": [0, 0, 0, 0],
+            "amarillas": [0, 0, 0, 0],
+            "rojas": [0, 0, 0, 0],
+        }
+    )
+    directory = tmp_path / "analytics"
+    directory.mkdir()
+    match_results.to_csv(directory / "match_results.csv", index=False, encoding="utf-8-sig")
+    player_match_features.to_csv(
+        directory / "player_match_features.csv", index=False, encoding="utf-8-sig"
+    )
+    pd.DataFrame(columns=["jugador", "anio"]).to_csv(
+        directory / "player_season_summary.csv", index=False, encoding="utf-8-sig"
+    )
+
+    con = dashboard_data.get_connection(directory)
+    lineup = dashboard_data.match_lineup(con, "m1")
+
+    assert list(lineup["posicion"]) == ["G", "D", "M", "F"]
+    assert list(lineup["jugador"]) == ["Arquero1", "Defensa1", "Mediocampista1", "Delantero1"]
 
 
 def test_match_lineup_empty_for_match_without_player_data(analytics_dir: Path) -> None:

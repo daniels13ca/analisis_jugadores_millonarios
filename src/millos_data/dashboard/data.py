@@ -282,7 +282,12 @@ def matches_filtered(
 
 
 def match_lineup(con: duckdb.DuckDBPyConnection, match_id: str) -> pd.DataFrame:
-    """Player-by-player stats for one match (the "planilla"), starters first."""
+    """Player-by-player stats for one match (the "planilla").
+
+    Ordered by position in the classic back-to-front sequence (arquero,
+    defensa, mediocampista, delantero), starters before substitutes within
+    each position.
+    """
     query = """
         SELECT
             jugador, posicion, titular, minutos, calificacion, goles, asistencias,
@@ -291,7 +296,16 @@ def match_lineup(con: duckdb.DuckDBPyConnection, match_id: str) -> pd.DataFrame:
             faltas_cometidas, faltas_recibidas, amarillas, rojas
         FROM player_match_features
         WHERE match_id = ?
-        ORDER BY titular DESC, minutos DESC
+        ORDER BY
+            CASE posicion
+                WHEN 'G' THEN 0
+                WHEN 'D' THEN 1
+                WHEN 'M' THEN 2
+                WHEN 'F' THEN 3
+                ELSE 4
+            END,
+            titular DESC,
+            minutos DESC
     """
     return con.execute(query, [match_id]).df()
 

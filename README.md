@@ -298,10 +298,14 @@ metrica graficar, que partido puntual ver la planilla) — ver
    10 partidos, con marcadores coloreados por resultado), puntos acumulados por año (comparacion
    de ritmo entre temporadas, eje X por mes), goles a favor/en contra por partido (barras
    apiladas), resumen por condicion (local/visitante) y por campeonato.
-2. **Partidos**: el detalle partido a partido — fecha, rival, condicion (🏠/✈️), marcador y
-   resultado (🟢/🟡/🔴). Con el selector "Partido" (dentro de la pestaña, no es un filtro) se ve
-   la planilla completa de ese partido (titulares/suplentes, minutos, calificacion, goles, y el
-   resto de las stats de cada jugador).
+2. **Partidos**: tabla "Histórico de Partidos" — fecha, rival, condicion (🏠/✈️), marcador y
+   resultado (🟢/🟡/🔴). Seleccionando una fila (click en la tabla, no es un filtro del sidebar)
+   se actualiza todo lo de abajo: un diagrama de cancha con la alineación titular (una linea por
+   posicion — arquero/defensa/mediocampo/delantera, ver `_lineup_pitch_positions` en `app.py`; es
+   una formacion *aproximada*, la API no da coordenadas reales en cancha ni el esquema tactico) y
+   la tabla "Planilla individual de partido" (titulares/suplentes, minutos, calificacion, goles, y
+   el resto de las stats de cada jugador, en el mismo orden arquero → defensa → mediocampista →
+   delantero); sin seleccionar nada se muestra el partido mas reciente.
 3. **Ranking de jugadores**: tabla y grafico de barras ordenable (selector "Ordenar / Graficar
    por", dentro de la pestaña) por goles/asistencias por 90', calificacion promedio, minutos, % de
    duelos ganados — con el promedio de la posicion como referencia (`promedio_posicion` /

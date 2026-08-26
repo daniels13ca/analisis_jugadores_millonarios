@@ -531,9 +531,127 @@ def _team_summary_column_config(group_column: str, group_label: str) -> dict:
     }
 
 
+PITCH_LENGTH = 100
+PITCH_WIDTH = 64
+# x-position (own goal at 0, opponent goal at PITCH_LENGTH) for each position
+# line. We only know the broad role (G/D/M/F), not real on-pitch coordinates
+# or the actual tactical formation, so this draws an approximate "shape" --
+# one horizontal line per role, evenly spread -- not a precise formation.
+POSITION_ROW_X = {"G": 6, "D": 26, "M": 56, "F": 86}
+POSITION_ROW_ORDER = ["G", "D", "M", "F"]
+
+
+def _spread_along_width(count: int, low: float = 6, high: float = PITCH_WIDTH - 6) -> list[float]:
+    """`count` evenly spaced y-positions between low and high (a single value
+    centered if count == 1)."""
+    if count <= 0:
+        return []
+    if count == 1:
+        return [(low + high) / 2]
+    step = (high - low) / (count - 1)
+    return [low + i * step for i in range(count)]
+
+
+def _lineup_pitch_positions(titulares: pd.DataFrame) -> pd.DataFrame:
+    """Assign an approximate (pitch_x, pitch_y) to each starter, grouped into
+    one row per position (arquero/defensa/mediocampista/delantero) and
+    spread evenly across the pitch width within that row.
+    """
+    rows: list[pd.DataFrame] = []
+    grouped = {code: group for code, group in titulares.groupby("posicion", sort=False)}
+    ordered_codes = POSITION_ROW_ORDER + [c for c in grouped if c not in POSITION_ROW_ORDER]
+
+    for codigo in ordered_codes:
+        group = grouped.get(codigo)
+        if group is None or group.empty:
+            continue
+        ys = _spread_along_width(len(group))
+        x = POSITION_ROW_X.get(codigo, PITCH_LENGTH / 2)
+        rows.append(group.assign(pitch_x=x, pitch_y=ys))
+
+    if not rows:
+        return titulares.assign(pitch_x=pd.Series(dtype=float), pitch_y=pd.Series(dtype=float))
+    return pd.concat(rows, ignore_index=True)
+
+
+def _pitch_hover_text(row: pd.Series) -> str:
+    calificacion = f"{row['calificacion']:.1f}" if pd.notna(row["calificacion"]) else "s/d"
+    minutos = int(row["minutos"]) if pd.notna(row["minutos"]) else 0
+    goles = int(row["goles"]) if pd.notna(row["goles"]) else 0
+    asistencias = int(row["asistencias"]) if pd.notna(row["asistencias"]) else 0
+    return (
+        f"<b>{row['jugador']}</b><br>{fmt.position_label(row['posicion'])}<br>"
+        f"Minutos: {minutos}<br>Calificación: {calificacion}<br>"
+        f"Goles: {goles} · Asistencias: {asistencias}"
+    )
+
+
+def _pitch_chart(titulares: pd.DataFrame) -> go.Figure:
+    """Starting-lineup diagram: one marker per starter, arranged by position
+    line on an approximate pitch (see POSITION_ROW_X -- not a real tactical
+    formation, since the data only has broad position codes).
+    """
+    positions = _lineup_pitch_positions(titulares)
+
+    fig = go.Figure()
+
+    # Pitch outline and markings.
+    half_length, half_width = PITCH_LENGTH / 2, PITCH_WIDTH / 2
+    fig.add_shape(
+        type="rect", x0=0, y0=0, x1=PITCH_LENGTH, y1=PITCH_WIDTH,
+        line=dict(color=fmt.PITCH_LINE_COLOR, width=2), fillcolor=fmt.PITCH_GREEN, layer="below",
+    )
+    fig.add_shape(
+        type="line", x0=half_length, y0=0, x1=half_length, y1=PITCH_WIDTH,
+        line=dict(color=fmt.PITCH_LINE_COLOR, width=2),
+    )
+    fig.add_shape(
+        type="circle", x0=half_length - 9, y0=half_width - 9, x1=half_length + 9, y1=half_width + 9,
+        line=dict(color=fmt.PITCH_LINE_COLOR, width=2),
+    )
+    for x0, x1 in [(0, 16), (PITCH_LENGTH - 16, PITCH_LENGTH)]:
+        fig.add_shape(
+            type="rect", x0=x0, y0=half_width - 20, x1=x1, y1=half_width + 20,
+            line=dict(color=fmt.PITCH_LINE_COLOR, width=2),
+        )
+    for x0, x1 in [(0, 6), (PITCH_LENGTH - 6, PITCH_LENGTH)]:
+        fig.add_shape(
+            type="rect", x0=x0, y0=half_width - 9, x1=x1, y1=half_width + 9,
+            line=dict(color=fmt.PITCH_LINE_COLOR, width=2),
+        )
+
+    if not positions.empty:
+        fig.add_scatter(
+            x=positions["pitch_x"],
+            y=positions["pitch_y"],
+            mode="markers+text",
+            text=positions["jugador"],
+            textposition="bottom center",
+            textfont=dict(color="white", size=11),
+            marker=dict(size=30, color=fmt.PRIMARY_COLOR, line=dict(color="white", width=2)),
+            hovertext=positions.apply(_pitch_hover_text, axis=1),
+            hoverinfo="text",
+            showlegend=False,
+        )
+
+    fig.update_xaxes(range=[-4, PITCH_LENGTH + 4], visible=False, fixedrange=True)
+    fig.update_yaxes(
+        range=[-8, PITCH_WIDTH + 8], visible=False, fixedrange=True,
+        scaleanchor="x", scaleratio=1,
+    )
+    fig.update_layout(
+        title="Alineación titular",
+        plot_bgcolor=fmt.PITCH_GREEN,
+        paper_bgcolor="rgba(0, 0, 0, 0)",
+        margin=dict(l=10, r=10, t=50, b=10),
+        height=440,
+    )
+    return fig
+
+
 def _render_matches_tab(con, filters: Filters) -> None:
     st.header("Detalle de partidos")
-    st.caption("Fecha, rival, condición y resultado de cada partido, con la planilla del que elijas.")
+    st.caption("Selecciona una fila en el histórico para ver su planilla individual abajo.")
 
     partidos = dashboard_data.matches_filtered(
         con,
@@ -552,7 +670,8 @@ def _render_matches_tab(con, filters: Filters) -> None:
         resultado_partido=partidos["resultado_partido"].map(fmt.result_label),
     )[["fecha", "rival", "condicion", "resultado", "resultado_partido", "campeonato", "puntos"]]
 
-    st.dataframe(
+    st.subheader("Histórico de Partidos")
+    tabla_partidos = st.dataframe(
         display,
         width="stretch",
         hide_index=True,
@@ -565,6 +684,9 @@ def _render_matches_tab(con, filters: Filters) -> None:
             "campeonato": st.column_config.TextColumn("Campeonato"),
             "puntos": st.column_config.NumberColumn("Puntos", format="%d"),
         },
+        on_select="rerun",
+        selection_mode="single-row",
+        key="partidos_historico",
     )
     st.caption(f"{len(partidos)} partido(s)")
 
@@ -573,25 +695,39 @@ def _render_matches_tab(con, filters: Filters) -> None:
         st.caption(f"ℹ️ {sin_datos} de estos partidos no tienen planilla de jugadores registrada.")
 
     st.divider()
-    st.subheader("Planilla de un partido")
+    st.subheader("Planilla individual de partido")
 
-    con_datos = partidos[partidos["tiene_datos_jugadores"]].copy()
+    con_datos = partidos[partidos["tiene_datos_jugadores"]]
     if con_datos.empty:
         st.info("Ninguno de los partidos filtrados tiene planilla de jugadores.")
         return
 
-    con_datos["etiqueta"] = (
-        con_datos["fecha"] + " — " + con_datos["rival"]
-        + " (" + con_datos["condicion"].map(fmt.condition_label) + ") "
-        + con_datos["resultado"]
-    )
-    etiqueta_to_id = dict(zip(con_datos["etiqueta"], con_datos["match_id"]))
-    seleccion = st.selectbox("Partido", list(etiqueta_to_id))
+    selected_rows = tabla_partidos.selection.rows if tabla_partidos.selection else []
+    if selected_rows:
+        seleccionado = partidos.iloc[selected_rows[0]]
+        if not seleccionado["tiene_datos_jugadores"]:
+            st.info("El partido seleccionado no tiene planilla de jugadores registrada.")
+            return
+        match_id = seleccionado["match_id"]
+    else:
+        # Nothing clicked yet: default to the most recent match with a lineup.
+        st.caption("Mostrando el partido más reciente. Selecciona otra fila arriba para cambiarlo.")
+        match_id = con_datos.iloc[0]["match_id"]
 
-    lineup = dashboard_data.match_lineup(con, etiqueta_to_id[seleccion])
+    lineup = dashboard_data.match_lineup(con, match_id)
     if lineup.empty:
         st.info("No hay datos de jugadores para este partido.")
         return
+
+    titulares = lineup[lineup["titular"]]
+    if titulares.empty:
+        st.info("No hay titulares registrados para este partido.")
+    else:
+        _render_chart(_pitch_chart(titulares))
+        st.caption(
+            "Formación aproximada por línea de posición (arquero, defensa, mediocampo, "
+            "delantera) — la API no expone la posición exacta en cancha ni el esquema táctico."
+        )
 
     st.dataframe(
         lineup.assign(posicion=lineup["posicion"].map(fmt.position_label)),

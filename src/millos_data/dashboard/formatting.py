@@ -46,6 +46,10 @@ YEAR_COLOR_SEQUENCE = ["#A9C6E8", "#5B9BD5", "#0A3D91", "#062754", "#F2A65A"]
 # points-race chart's x-axis alongside the jornada number.
 MES_ABBR = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
 
+# Pitch diagram (starting-lineup chart).
+PITCH_GREEN = "#2E7D32"
+PITCH_LINE_COLOR = "#F5F5F5"
+
 
 def result_label(value: str) -> str:
     return RESULT_LABELS.get(value, value)
