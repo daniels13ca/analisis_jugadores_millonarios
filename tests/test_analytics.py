@@ -6,6 +6,7 @@ import pytest
 from conftest import make_match_payload, make_player, write_match_json
 
 from millos_data.analytics import (
+    PLAYER_NAME_ALIASES,
     build_match_results,
     build_player_match_features,
     build_player_season_summary,
@@ -185,6 +186,19 @@ def test_canonicalize_player_names_picks_most_frequent_variant() -> None:
 
     assert set(result["jugador"]) == {"Daniel Ruiz", "Andrés Llinás"}
     assert (result["jugador"] == "Daniel Ruiz").sum() == 5
+
+
+def test_canonicalize_player_names_applies_manual_aliases() -> None:
+    # "David Silva" / "David Macalister Silva" is a real case in the dataset:
+    # not an accent variant, so the frequency-based logic alone can't merge
+    # it -- it needs the explicit PLAYER_NAME_ALIASES entry.
+    assert "David Silva" in PLAYER_NAME_ALIASES
+    df = pd.DataFrame({"jugador": ["David Silva", "David Macalister Silva", "David Macalister Silva"]})
+
+    result = canonicalize_player_names(df)
+
+    assert set(result["jugador"]) == {"David Macalister Silva"}
+    assert (result["jugador"] == "David Macalister Silva").sum() == 3
 
 
 def test_build_player_match_features_merges_name_variants() -> None:

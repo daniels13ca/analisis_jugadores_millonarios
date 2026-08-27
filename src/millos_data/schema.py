@@ -29,8 +29,15 @@ MATCH_COLUMNS: list[str] = [
 ]
 
 # Columns that describe the player, independent of their performance stats.
+# jugador_id is the API's numeric player id (see extract.py) -- present only
+# in JSON downloaded after this field was added, so it's NA for historical
+# matches. Kept alongside the name so a future name change/typo in the API
+# doesn't fragment a player's history the way a bare-name mismatch can (see
+# analytics.PLAYER_NAME_ALIASES for the manual fix applied to matches
+# downloaded before this existed).
 PLAYER_COLUMNS: list[str] = [
     "jugador",
+    "jugador_id",
     "posicion",
     "minutos",
     "calificacion",

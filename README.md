@@ -228,9 +228,11 @@ Corre sanity checks sobre `match_results` y `player_match_features`: partidos du
 inconsistente con `resultado_partido`, `condicion` invalida (todo partido de Millonarios debe ser
 `Local` o `Visitante`, sin nulos ni otro valor), minutos fuera de rango, stats negativos,
 reconciliacion de goles del equipo vs. goles individuales de jugadores (un autogol del rival genera
-una diferencia de 1, es normal; mas de eso o una diferencia negativa se marca), y variantes de
-nombre de jugador ya fusionadas automaticamente en `build_player_match_features` (te avisa cual
-eligio como canonica).
+una diferencia de 1, es normal; mas de eso o una diferencia negativa se marca), variantes de
+nombre de jugador por tilde/mayuscula ya fusionadas automaticamente en `build_player_match_features`
+(te avisa cual eligio como canonica), y pares de nombres donde uno es subconjunto de tokens del
+otro (p. ej. nombre incompleto en algunas descargas — ver `analytics.PLAYER_NAME_ALIASES` mas
+abajo), que se reportan pero nunca se fusionan solos.
 
 Sale con codigo de salida distinto de cero si hay algun `ERROR` (los `WARNING` no fallan el
 comando). Utiles para correr despues de cada `build-analytics`, especialmente tras bajar una
@@ -306,10 +308,15 @@ metrica graficar, que partido puntual ver la planilla) — ver
    la tabla "Planilla individual de partido" (titulares/suplentes, minutos, calificacion, goles, y
    el resto de las stats de cada jugador, en el mismo orden arquero → defensa → mediocampista →
    delantero); sin seleccionar nada se muestra el partido mas reciente.
-3. **Ranking de jugadores**: tabla y grafico de barras ordenable (selector "Ordenar / Graficar
-   por", dentro de la pestaña) por goles/asistencias por 90', calificacion promedio, minutos, % de
-   duelos ganados — con el promedio de la posicion como referencia (`promedio_posicion` /
-   `vs_promedio_posicion`) y boton de descarga a CSV.
+3. **Ranking de jugadores**: podio (🥇🥈🥉) con el top 3 de la metrica elegida (selector "Ordenar /
+   Graficar por", dentro de la pestaña: goles/asistencias por 90', calificacion promedio, minutos,
+   % de duelos ganados o % de precision de pase) — cada card muestra tambien los partidos jugados,
+   para que una actuacion de un solo partido no se lea como un liderato de temporada completa.
+   Tabla completa con columna de puesto (`#`) y boton de descarga a CSV, grafico de barras del top
+   15, y un grafico de barras divergente (verde/rojo) mostrando quien esta por encima o por debajo
+   del promedio de su posicion (`promedio_posicion` / `vs_promedio_posicion`) en esa metrica —
+   limitado a jugadores con 3+ partidos jugados (aclarado en un pie de pagina bajo el grafico), por
+   la misma razon.
 4. **Ficha de jugador**: calificacion y minutos partido a partido para el jugador elegido en el
    sidebar.
 5. **Comparador**: los jugadores elegidos en el sidebar, lado a lado (2+ jugadores, o el mismo
@@ -506,6 +513,8 @@ pytest -q
 - Los nuevos CSV se escriben en `utf-8-sig`.
 - Se agrega `match_id` para tener una clave estable por partido (prioriza `fixture_id`; si no
   existe, cae a `fecha:condicion:rival`).
+- Los JSON historicos sin `jugador_id` (todo lo descargado antes de que se agregara este campo)
+  siguen funcionando; esa columna queda vacia para esas filas.
 
 ## Restriccion del proyecto
 
@@ -558,6 +567,9 @@ pena iterar mas alla de lo descriptivo:
 - **Expected goals/assists (proxy)**: si la API expone eventos de tiro mas detallados (no
   explorado todavia — requeriria el endpoint de `events`, no solo `fixtures/players`), se podria
   aproximar un xG simple y comparar goles reales vs. esperados.
+- **Reconciliacion de jugadores por `jugador_id`**: una vez que haya suficientes temporadas
+  descargadas con el id de la API (ver "Mantenimiento: un jugador con dos nombres distintos"),
+  usarlo como clave primaria en vez del nombre — mas confiable que cualquier heuristica de texto.
 - **Alertas automaticas**: un check tipo `validate.py` pero de negocio, no de calidad de datos
   (p. ej. "jugador con calificacion promedio por debajo de X en los ultimos 5 partidos"),
   mostrado como aviso en el sidebar del dashboard.
@@ -592,3 +604,26 @@ python -m millos_data dedupe-matches --base-path . --apply
 
 Despues de archivar duplicados, regenera el CSV desde cero con `--rebuild` (ver arriba), ya que el
 CSV anterior puede tener filas duplicadas ya incorporadas de ejecuciones previas.
+
+## Mantenimiento: un jugador con dos nombres distintos
+
+No hay un id de jugador estable en los datos historicos (2022-2024) — la API si expone uno
+(`player.id`), pero el pipeline nunca lo guardaba, solo el nombre. Si el nombre viene incompleto en
+alguna descarga (le falta un segundo nombre o apellido), el mismo jugador termina partido en dos
+"personas" distintas en `player_season_summary`. Caso real ya corregido: "David Silva" (6 filas,
+2022) y "David Macalister Silva" (121 filas, 2022-2024).
+
+- **Detectarlos**: `python -m millos_data validate-analytics` corre
+  `validate.check_player_name_subset_candidates`, que busca pares de nombres donde uno es
+  subconjunto de tokens del otro y los reporta como warning (marcando si ya estan resueltos o no).
+  A proposito nunca fusiona solo — dos jugadores reales distintos podrian tener esa relacion.
+- **Corregirlos**: agregar el caso confirmado a `PLAYER_NAME_ALIASES` en
+  [src/millos_data/analytics.py](src/millos_data/analytics.py) (nombre corto → nombre completo).
+  `canonicalize_player_names` lo aplica antes de la fusion por tilde/mayuscula, asi que corre
+  automaticamente en `build_player_match_features`. Despues, `python -m millos_data refresh`
+  regenera `analytics/` con el jugador ya unificado (el CSV crudo consolidado no cambia, igual que
+  con las variantes de tilde).
+- **Prevenirlos a futuro**: las descargas nuevas (`download-season`) ya guardan `jugador_id` (el id
+  de la API) en cada fila — ver `schema.py`/`extract.py`/`transform.py`. Los partidos ya
+  descargados quedan con `jugador_id` vacio, porque no se puede completar sin volver a consumir la
+  API.

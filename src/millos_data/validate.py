@@ -17,7 +17,12 @@ from pathlib import Path
 
 import pandas as pd
 
-from .analytics import build_match_results, build_player_match_features, normalize_name_key
+from .analytics import (
+    PLAYER_NAME_ALIASES,
+    build_match_results,
+    build_player_match_features,
+    normalize_name_key,
+)
 from .consolidate import read_existing_dataset
 
 # Columns that should never be negative in the player-match dataset.
@@ -260,6 +265,59 @@ def check_player_name_variants(player_match_df: pd.DataFrame) -> list[Validation
     ]
 
 
+def check_player_name_subset_candidates(player_match_df: pd.DataFrame) -> list[ValidationIssue]:
+    """Flag name pairs where one is a strict token subset of the other, e.g.
+    "David Silva" / "David Macalister Silva" -- a common way the same real
+    player ends up split in two: an incomplete name on some matches.
+
+    Unlike check_player_name_variants (accent/case differences, safe to
+    auto-merge by frequency), this is a *candidate* list for manual review:
+    two different real players could legitimately have a subset-name
+    relationship, so nothing here gets merged automatically. Confirmed cases
+    go in analytics.PLAYER_NAME_ALIASES, which is what actually fixes them;
+    this check keeps reporting them (marked resuelto) so it's visible that
+    the pair was reviewed and handled, not just filtered from view.
+    """
+    names = [name for name in player_match_df["jugador"].dropna().unique() if str(name).strip()]
+    token_sets = {name: frozenset(normalize_name_key(name).split()) for name in names}
+
+    candidates: list[tuple[str, str]] = []
+    for i, name_a in enumerate(names):
+        tokens_a = token_sets[name_a]
+        for name_b in names[i + 1 :]:
+            tokens_b = token_sets[name_b]
+            if not tokens_a or not tokens_b or tokens_a == tokens_b:
+                continue
+            if tokens_a < tokens_b:
+                candidates.append((name_a, name_b))
+            elif tokens_b < tokens_a:
+                candidates.append((name_b, name_a))
+
+    if not candidates:
+        return []
+
+    details = pd.DataFrame(
+        {
+            "nombre_corto": [corto for corto, _ in candidates],
+            "nombre_largo": [largo for _, largo in candidates],
+            "resuelto": [PLAYER_NAME_ALIASES.get(corto) == largo for corto, largo in candidates],
+        }
+    )
+    sin_resolver = int((~details["resuelto"]).sum())
+    return [
+        ValidationIssue(
+            check="player_name_subset_candidates",
+            severity="warning",
+            message=(
+                f"{len(candidates)} par(es) de nombres donde uno es subconjunto de tokens del "
+                f"otro (posible nombre incompleto del mismo jugador); {sin_resolver} sin agregar "
+                "a analytics.PLAYER_NAME_ALIASES todavia"
+            ),
+            details=details,
+        )
+    ]
+
+
 def run_validations(base_path: Path, dataset_path: Path) -> ValidationReport:
     match_results = build_match_results(base_path)
     player_match_df = read_existing_dataset(dataset_path)
@@ -273,6 +331,7 @@ def run_validations(base_path: Path, dataset_path: Path) -> ValidationReport:
         *check_no_negative_stats(player_features),
         *check_team_goals_reconciliation(match_results, player_features),
         *check_player_name_variants(player_match_df),
+        *check_player_name_subset_candidates(player_match_df),
     ]
 
     return ValidationReport(issues=issues)

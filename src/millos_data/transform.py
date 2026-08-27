@@ -53,6 +53,7 @@ def flatten_match_file(path: Path) -> list[dict[str, Any]]:
             "condicion": metadata.get("condicion"),
             "resultado": metadata.get("resultado"),
             "jugador": player.get("nombre"),
+            "jugador_id": normalize_nullable(player.get("jugador_id")),
             "posicion": player.get("posicion"),
             "minutos": normalize_nullable(player.get("minutos")),
             "calificacion": pd.to_numeric(player.get("calificacion"), errors="coerce"),

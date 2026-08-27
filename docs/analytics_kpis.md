@@ -65,6 +65,30 @@ más frecuente en el dataset como canónica — en los 4 casos fue la variante
 sin tilde. `validate-analytics` sigue reportando estos casos como warning
 (no error) para que quede visible cuál se fusionó y con qué criterio.
 
+**Segundo caso real, distinto (Fase 2, ronda 2)**: "David Silva" (6 filas,
+2022) y "David Macalister Silva" (121 filas, 2022-2024) son el mismo
+jugador, pero no son variantes de tilde/mayúscula — es un nombre incompleto
+en algunas descargas, así que `canonicalize_player_names` no lo detectaba
+solo. Se agregó `analytics.PLAYER_NAME_ALIASES` (mapa manual, nombre corto
+→ nombre completo) para estos casos, aplicado antes de la canonicalización
+por tilde. Para encontrar *otros* casos similares sin tener que
+inspeccionar el dataset a mano, `validate.check_player_name_subset_candidates`
+busca pares de nombres donde uno es subconjunto de tokens del otro (probado
+contra los 74 nombres únicos del dataset: encontró exactamente este caso,
+cero falsos positivos) y los reporta como warning, marcando si ya están en
+`PLAYER_NAME_ALIASES` o si faltan por revisar y confirmar manualmente — a
+propósito nunca fusiona automáticamente, porque dos jugadores reales
+distintos sí podrían tener esa relación de subconjunto.
+
+**ID de jugador (Fase 2, ronda 2)**: la API sí expone un id numérico estable
+por jugador (`player.id`), pero el pipeline nunca lo guardaba, solo el
+nombre — la causa raíz del problema de arriba. Ya se agregó `jugador_id` al
+esquema (`schema.py`, `extract.py`, `transform.py`) para que las descargas
+nuevas lo capturen; los partidos ya descargados (2022-2024) quedan con
+`jugador_id` vacío porque no se puede obtener sin volver a consumir la API.
+Una reconciliación por id (en vez de por nombre) para las temporadas que sí
+lo tengan es una idea natural para la Fase 6.
+
 ## Prioridad para la v1 del dashboard (Fase 3-4) — implementada
 
 Las 4 vistas están construidas en `dashboard/app.py` (Streamlit + DuckDB +

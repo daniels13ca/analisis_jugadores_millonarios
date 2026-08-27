@@ -5,6 +5,7 @@ from millos_data.validate import (
     check_minutes_within_bounds,
     check_no_duplicate_match_ids,
     check_no_negative_stats,
+    check_player_name_subset_candidates,
     check_player_name_variants,
     check_points_consistency,
     check_team_goals_reconciliation,
@@ -125,3 +126,35 @@ def test_check_player_name_variants_flags_accent_only_differences() -> None:
 def test_check_player_name_variants_clean_when_consistent() -> None:
     df = pd.DataFrame({"jugador": ["Daniel Ruíz", "Daniel Ruíz", "Andrés Llinás"]})
     assert check_player_name_variants(df) == []
+
+
+def test_check_player_name_subset_candidates_flags_known_alias_as_resolved() -> None:
+    df = pd.DataFrame({"jugador": ["David Silva", "David Macalister Silva", "Andrés Llinás"]})
+    issues = check_player_name_subset_candidates(df)
+
+    assert len(issues) == 1
+    details = issues[0].details
+    assert len(details) == 1
+    assert details.iloc[0]["nombre_corto"] == "David Silva"
+    assert details.iloc[0]["nombre_largo"] == "David Macalister Silva"
+    assert details.iloc[0]["resuelto"]
+    assert "0 sin agregar" in issues[0].message
+
+
+def test_check_player_name_subset_candidates_flags_unresolved_case() -> None:
+    df = pd.DataFrame({"jugador": ["Juan Perez", "Juan Perez Gomez"]})
+    issues = check_player_name_subset_candidates(df)
+
+    assert len(issues) == 1
+    assert not issues[0].details.iloc[0]["resuelto"]
+    assert "1 sin agregar" in issues[0].message
+
+
+def test_check_player_name_subset_candidates_ignores_unrelated_names() -> None:
+    df = pd.DataFrame({"jugador": ["Daniel Ruiz", "Andrés Llinás", "Juan Pereira"]})
+    assert check_player_name_subset_candidates(df) == []
+
+
+def test_check_player_name_subset_candidates_ignores_identical_names() -> None:
+    df = pd.DataFrame({"jugador": ["Daniel Ruiz", "Daniel Ruiz"]})
+    assert check_player_name_subset_candidates(df) == []

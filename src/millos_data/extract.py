@@ -178,6 +178,12 @@ def build_fixture_payload(config: ApiConfig, fixture: dict[str, Any]) -> str:
             players.append(
                 {
                     "nombre": player_info.get("name"),
+                    # API-Football's stable numeric player id -- captured so a
+                    # future name typo/rename in the API doesn't fragment a
+                    # player's history the way a bare-name mismatch already
+                    # has for some pre-existing downloads (see
+                    # analytics.PLAYER_NAME_ALIASES for the manual fix).
+                    "jugador_id": player_info.get("id"),
                     "posicion": games.get("position"),
                     "minutos": _stat(games, "minutes"),
                     "calificacion": games.get("rating"),

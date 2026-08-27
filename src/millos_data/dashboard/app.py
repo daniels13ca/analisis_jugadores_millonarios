@@ -34,15 +34,22 @@ ANALYTICS_DIR = Path(os.environ.get("MILLOS_ANALYTICS_DIR", str(DEFAULT_ANALYTIC
 RANKING_METRICS = {
     "goles_por90": "Goles por 90'",
     "asistencias_por90": "Asistencias por 90'",
-    "calificacion_promedio": "Calificacion promedio",
+    "calificacion_promedio": "Calificación promedio",
     "minutos_totales": "Minutos totales",
     "duelos_ganados_pct": "% Duelos ganados",
-    "pases_precision_promedio": "% Precision de pase",
+    "pases_precision_promedio": "% Precisión de pase",
 }
+
+# Fractions (0-1) that need to be scaled to 0-100 before display -- unlike
+# the special "percent" format keyword, a printf-style NumberColumn format
+# like "%.0f%%" does not auto-multiply by 100, so a raw 0.65 would render as
+# "0%" instead of "65%" if left unscaled.
+PERCENT_COLUMNS = ["duelos_ganados_pct", "pases_precision_promedio"]
 
 # column_config blocks reused across tables so the same raw column always
 # gets the same header/format wherever it shows up.
 RANKING_COLUMN_CONFIG = {
+    "puesto": st.column_config.NumberColumn("#", format="%d"),
     "jugador": st.column_config.TextColumn("Jugador"),
     "anio": st.column_config.NumberColumn("Año", format="%d"),
     "posicion": st.column_config.TextColumn("Pos."),
@@ -60,7 +67,28 @@ RANKING_COLUMN_CONFIG = {
     "vs_promedio_posicion": st.column_config.NumberColumn("vs. posición", format="%.2f"),
 }
 
-st.set_page_config(page_title="Millonarios FC — Rendimiento", layout="wide", page_icon="⚽")
+
+def _scale_percent_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """0-1 fractions -> 0-100, for columns displayed with a "%.0f%%" printf
+    format (see PERCENT_COLUMNS). Safe to call on any dataframe; columns not
+    present are skipped.
+    """
+    result = df.copy()
+    for column in PERCENT_COLUMNS:
+        if column in result.columns:
+            result[column] = result[column] * 100
+    return result
+
+
+def _metric_scale(metric: str) -> float:
+    """1, or 100 for a percent-type metric -- for scaling a *value in that
+    metric's units* (not necessarily a column named `metric`, e.g.
+    vs_promedio_posicion) before charting.
+    """
+    return 100 if metric in PERCENT_COLUMNS else 1
+
+
+st.set_page_config(page_title="Millonarios FC: Rendimiento", layout="wide", page_icon="⚽")
 
 
 def _inject_style() -> None:
@@ -250,7 +278,7 @@ def _render_sidebar(con) -> Filters:
     Comparador). No other text.
     """
     with st.sidebar:
-        st.header("Análisis de rendimiento — Millonarios FC")
+        st.header("Análisis de rendimiento: Millonarios FC")
 
         last_updated = dashboard_data.dataset_last_updated(ANALYTICS_DIR)
         if last_updated is not None:
@@ -316,11 +344,11 @@ def _render_sidebar(con) -> Filters:
 
 def main() -> None:
     _inject_style()
-    st.title("⚽ Millonarios FC — Rendimiento")
+    st.title("⚽ Millonarios FC: Rendimiento")
 
     if not (ANALYTICS_DIR / "match_results.csv").exists():
         st.error(
-            f"No se encontraron las tablas de analitica en `{ANALYTICS_DIR}`. "
+            f"No se encontraron las tablas de analítica en `{ANALYTICS_DIR}`. "
             "Corre `python -m millos_data build-analytics` primero."
         )
         st.stop()
@@ -477,7 +505,7 @@ def _render_team_tab(con, filters: Filters) -> None:
         goles_df = resultados[
             pd.to_datetime(resultados["fecha"], errors="coerce").dt.year == filters.goles_anio
         ]
-        goles_titulo = f"Goles a favor / En contra por partido — {filters.goles_anio}"
+        goles_titulo = f"Goles a favor / En contra por partido: {filters.goles_anio}"
     else:
         goles_df = resultados
         goles_titulo = "Goles a favor / En contra por partido"
@@ -726,7 +754,7 @@ def _render_matches_tab(con, filters: Filters) -> None:
         _render_chart(_pitch_chart(titulares))
         st.caption(
             "Formación aproximada por línea de posición (arquero, defensa, mediocampo, "
-            "delantera) — la API no expone la posición exacta en cancha ni el esquema táctico."
+            "delantera): La API no expone la posición exacta en cancha ni el esquema táctico."
         )
 
     st.dataframe(
@@ -758,6 +786,44 @@ def _render_matches_tab(con, filters: Filters) -> None:
     )
 
 
+MEDALS = ["🥇", "🥈", "🥉"]
+
+# Minimum partidos_jugados to appear in the "vs. promedio de posición" chart
+# -- below this, a single big/bad game can dominate a per-90 rate and make
+# the comparison meaningless.
+MIN_MATCHES_FOR_VS_AVG_CHART = 3
+
+
+def _format_metric_value(metric: str, value: float) -> str:
+    if pd.isna(value):
+        return "s/d"
+    if metric in PERCENT_COLUMNS:
+        return f"{value * 100:.0f}%"
+    if metric == "minutos_totales":
+        return f"{int(value)}"
+    return f"{value:.2f}"
+
+
+def _render_podium(top: pd.DataFrame, metric: str) -> None:
+    """Top-3 cards for the selected metric, medal-style -- a quick highlight
+    before the full table, reusing the same card component as Equipo.
+
+    Always shows partidos_jugados alongside the metric: a single standout
+    match can otherwise look like a full-season leader (e.g. 4+ goles_por90
+    from one great game), which is misleading without that context.
+    """
+    podio = [
+        {
+            "icon": medalla,
+            "value": _format_metric_value(metric, row[metric]),
+            "label": f"{row['jugador']} ({int(row['anio'])}) · {int(row['partidos_jugados'])} PJ",
+        }
+        for medalla, (_, row) in zip(MEDALS, top.head(3).iterrows())
+    ]
+    if podio:
+        _stat_card_row(podio)
+
+
 def _render_ranking_tab(con, filters: Filters) -> None:
     st.header("Ranking de jugadores")
 
@@ -786,7 +852,18 @@ def _render_ranking_tab(con, filters: Filters) -> None:
         summary["vs_promedio_posicion"] = summary[metric] - summary["promedio_posicion"]
 
     summary_sorted = summary.sort_values(metric, ascending=False, na_position="last")
-    summary_display = summary_sorted.assign(posicion=summary_sorted["posicion"].map(fmt.position_label))
+    top = summary_sorted.dropna(subset=[metric]).head(15)
+    if not top.empty:
+        top = top.assign(jugador_anio=top["jugador"] + " (" + top["anio"].astype(str) + ")")
+
+    _render_podium(top, metric)
+
+    summary_display = summary_sorted.assign(
+        posicion=summary_sorted["posicion"].map(fmt.position_label),
+        puesto=range(1, len(summary_sorted) + 1),
+    )
+    summary_display = _scale_percent_columns(summary_display)
+    summary_display = summary_display[["puesto"] + [c for c in summary_display.columns if c != "puesto"]]
     st.dataframe(
         summary_display,
         width="stretch",
@@ -802,6 +879,7 @@ def _render_ranking_tab(con, filters: Filters) -> None:
 
     with st.expander("Promedio por posición (Todas las métricas)"):
         pos_avg_display = pos_avg.assign(posicion=pos_avg["posicion"].map(fmt.position_label))
+        pos_avg_display = _scale_percent_columns(pos_avg_display)
         st.dataframe(
             pos_avg_display,
             width="stretch",
@@ -809,19 +887,46 @@ def _render_ranking_tab(con, filters: Filters) -> None:
             column_config={**RANKING_COLUMN_CONFIG, "posicion": st.column_config.TextColumn("Posición")},
         )
 
-    top = summary_sorted.dropna(subset=[metric]).head(15)
     if not top.empty:
-        top = top.assign(jugador_anio=top["jugador"] + " (" + top["anio"].astype(str) + ")")
+        scale = _metric_scale(metric)
+        top_chart = top.assign(**{metric: top[metric] * scale}) if scale != 1 else top
         _render_chart(
             px.bar(
-                top,
+                top_chart,
                 x="jugador_anio",
                 y=metric,
-                title=f"Top 15 — {RANKING_METRICS[metric]}",
+                title=f"Top 15: {RANKING_METRICS[metric]}",
                 color_discrete_sequence=[fmt.PRIMARY_COLOR],
                 labels={"jugador_anio": "", metric: RANKING_METRICS[metric]},
             )
         )
+
+        top_vs_avg = top.dropna(subset=["vs_promedio_posicion"]) if "vs_promedio_posicion" in top.columns else top.iloc[0:0]
+        # A player with 1-2 matches can look like a standout (or a disaster)
+        # purely from a small sample; require a minimum before comparing
+        # them against their position's average.
+        top_vs_avg = top_vs_avg[top_vs_avg["partidos_jugados"] >= MIN_MATCHES_FOR_VS_AVG_CHART]
+        if not top_vs_avg.empty:
+            vs_avg_values = top_vs_avg["vs_promedio_posicion"] * scale
+            colors = vs_avg_values.apply(lambda v: fmt.WIN_COLOR if v >= 0 else fmt.LOSS_COLOR)
+            vs_avg_fig = go.Figure()
+            vs_avg_fig.add_bar(
+                x=top_vs_avg["jugador_anio"],
+                y=vs_avg_values,
+                marker_color=colors,
+            )
+            vs_avg_fig.update_layout(
+                title=f"{RANKING_METRICS[metric]}: Por encima o por debajo del promedio de su posición",
+                yaxis_title="Diferencia vs. promedio",
+                xaxis_title="",
+                showlegend=False,
+            )
+            _render_chart(vs_avg_fig)
+            st.caption(
+                f"Solo incluye jugadores con {MIN_MATCHES_FOR_VS_AVG_CHART} o más partidos jugados "
+                "en el año seleccionado, para no comparar contra el promedio a alguien con una "
+                "muestra muy chica."
+            )
 
 
 def _render_player_profile_tab(con, filters: Filters) -> None:
@@ -873,8 +978,8 @@ def _render_player_profile_tab(con, filters: Filters) -> None:
 def _render_comparator_tab(con, filters: Filters) -> None:
     st.header("Comparador de jugadores / Temporadas")
     st.caption(
-        "Elegí 2 o más jugadores en el sidebar para comparar. Para comparar un jugador contra sí "
-        "mismo en otra temporada, seleccionalo y después filtrá por año con el rango del sidebar."
+        "Elige 2 o más jugadores en el sidebar para comparar. Para comparar un jugador contra sí "
+        "mismo en otra temporada, selecciónalo y después filtra por año con el rango del sidebar."
     )
 
     if len(filters.jugadores_comparador) < 1:
@@ -892,6 +997,7 @@ def _render_comparator_tab(con, filters: Filters) -> None:
         jugador_anio=comparacion["jugador"] + " (" + comparacion["anio"].astype(str) + ")"
     )
     comparacion_display = comparacion.assign(posicion=comparacion["posicion"].map(fmt.position_label))
+    comparacion_display = _scale_percent_columns(comparacion_display)
     st.dataframe(
         comparacion_display.drop(columns=["jugador_anio"]),
         width="stretch",
@@ -911,12 +1017,18 @@ def _render_comparator_tab(con, filters: Filters) -> None:
         format_func=RANKING_METRICS.get,
         key="comparador_metric",
     )
+    comparacion_scale = _metric_scale(metric)
+    comparacion_chart = (
+        comparacion.assign(**{metric: comparacion[metric] * comparacion_scale})
+        if comparacion_scale != 1
+        else comparacion
+    )
     _render_chart(
         px.bar(
-            comparacion,
+            comparacion_chart,
             x="jugador_anio",
             y=metric,
-            title=f"Comparación — {RANKING_METRICS[metric]}",
+            title=f"Comparación: {RANKING_METRICS[metric]}",
             color_discrete_sequence=[fmt.PRIMARY_COLOR],
             labels={"jugador_anio": "", metric: RANKING_METRICS[metric]},
         )

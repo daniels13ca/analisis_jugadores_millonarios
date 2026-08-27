@@ -188,6 +188,18 @@ def normalize_name_key(name: Any) -> str:
     return " ".join(ascii_name.lower().split())
 
 
+# Manually confirmed cases where the same real player was saved under two
+# unrelated-looking names -- typically an incomplete name in some matches
+# (e.g. a missing middle name), which the accent/case-insensitive matching
+# in canonicalize_player_names below can't catch on its own since the two
+# strings aren't the same after normalizing accents/case, just related.
+# validate.check_player_name_subset_candidates flags new candidates for this
+# list; add a confirmed case here (short name -> full name) to fix it.
+PLAYER_NAME_ALIASES: dict[str, str] = {
+    "David Silva": "David Macalister Silva",
+}
+
+
 def canonicalize_player_names(dataframe: pd.DataFrame, column: str = "jugador") -> pd.DataFrame:
     """Collapse spelling variants of the same name to one canonical spelling.
 
@@ -195,11 +207,20 @@ def canonicalize_player_names(dataframe: pd.DataFrame, column: str = "jugador") 
     `jugador` values across matches, undercounting them in
     build_player_season_summary (see docs/analytics_kpis.md and
     validate.check_player_name_variants, which flags this instead of fixing
-    it). The most frequent variant in the dataset is picked as canonical --
-    simple and, empirically on this dataset, correct: the accented "proper"
-    spelling loses to a plain-ASCII typo/shorthand more often than not.
+    it). Two mechanisms, applied in order:
+
+    1. PLAYER_NAME_ALIASES: manually confirmed exact-string replacements
+       for names too different to detect automatically.
+    2. The most frequent accent/case variant in the dataset is picked as
+       canonical for everything else -- simple and, empirically on this
+       dataset, correct: the accented "proper" spelling loses to a
+       plain-ASCII typo/shorthand more often than not.
     """
     result = dataframe.copy()
+    result[column] = result[column].map(
+        lambda name: PLAYER_NAME_ALIASES.get(name, name) if pd.notna(name) else name
+    )
+
     names = result[column].dropna()
     if names.empty:
         return result
