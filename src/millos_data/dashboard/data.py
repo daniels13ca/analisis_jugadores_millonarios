@@ -373,13 +373,24 @@ def player_match_history(
     jugador: str,
     anios: list[int] | None = None,
 ) -> pd.DataFrame:
-    where_clauses = ["jugador = ?"]
+    """A player's match-by-match rows, plus resultado_partido/puntos joined
+    in from match_results -- the team's W/D/L outcome for that match, reused
+    (not recomputed) so the Ficha de jugador form chart can color by result
+    consistently with the rest of the dashboard.
+    """
+    where_clauses = ["p.jugador = ?"]
     params: list = [jugador]
-    year_sql, year_params = _year_condition("fecha", anios)
+    year_sql, year_params = _year_condition("p.fecha", anios)
     if year_sql:
         where_clauses.append(year_sql)
         params.extend(year_params)
-    query = f"SELECT * FROM player_match_features WHERE {' AND '.join(where_clauses)} ORDER BY fecha"
+    query = f"""
+        SELECT p.*, m.resultado_partido, m.puntos
+        FROM player_match_features p
+        LEFT JOIN match_results m ON p.match_id = m.match_id
+        WHERE {' AND '.join(where_clauses)}
+        ORDER BY p.fecha
+    """
     return con.execute(query, params).df()
 
 

@@ -35,6 +35,9 @@ def analytics_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
         {
             "match_id": ["m1", "m2"],
             "fecha": ["2024-01-01", "2024-01-08"],
+            "rival": ["Junior", "Santa Fe"],
+            "condicion": ["Local", "Visitante"],
+            "resultado": ["2 - 1", "1 - 1"],
             "jugador": ["Jugador A", "Jugador A"],
             "posicion": ["F", "F"],
             "titular": [True, True],
@@ -47,6 +50,7 @@ def analytics_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
             "remates_al_arco": [1, 0],
             "pases_totales": [30, 15],
             "pases_precision": ["80%", "70%"],
+            "pases_precision_num": [0.8, 0.7],
             "entradas": [0, 0],
             "intercepciones": [0, 0],
             "despejes": [0, 0],

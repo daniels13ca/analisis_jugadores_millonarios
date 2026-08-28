@@ -290,6 +290,16 @@ def test_player_match_history_ordered_by_fecha(analytics_dir: Path) -> None:
     assert history["jugador"].eq("Jugador A").all()
 
 
+def test_player_match_history_joins_resultado_partido(analytics_dir: Path) -> None:
+    con = dashboard_data.get_connection(analytics_dir)
+    history = dashboard_data.player_match_history(con, "Jugador A").set_index("match_id")
+
+    # m1 -> W, m2 -> D, m4 -> L per the shared match_results fixture.
+    assert history.loc["m1", "resultado_partido"] == "W"
+    assert history.loc["m1", "puntos"] == 3
+    assert history.loc["m4", "resultado_partido"] == "L"
+
+
 def test_player_match_history_filters_by_anios(analytics_dir: Path) -> None:
     con = dashboard_data.get_connection(analytics_dir)
 

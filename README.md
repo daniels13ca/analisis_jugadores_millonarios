@@ -317,8 +317,13 @@ metrica graficar, que partido puntual ver la planilla) — ver
    del promedio de su posicion (`promedio_posicion` / `vs_promedio_posicion`) en esa metrica —
    limitado a jugadores con 3+ partidos jugados (aclarado en un pie de pagina bajo el grafico), por
    la misma razon.
-4. **Ficha de jugador**: calificacion y minutos partido a partido para el jugador elegido en el
-   sidebar.
+4. **Ficha de jugador**: encabezado con nombre y posicion, cards de partidos jugados/minutos/
+   calificacion promedio/goles/asistencias/tarjetas, un grafico de forma (calificacion partido a
+   partido con marcadores coloreados por resultado del equipo y tamaño segun minutos jugados, mas
+   una linea de promedio movil de 5 partidos — mismo lenguaje visual que la forma reciente de
+   Equipo), tabla de comparacion contra el promedio de su posicion en las metricas clave, y tabla
+   de resumen por temporada (misma logica que `player_season_summary`), todo para el jugador
+   elegido en el sidebar.
 5. **Comparador**: los jugadores elegidos en el sidebar, lado a lado (2+ jugadores, o el mismo
    jugador en distintos años usando el rango del sidebar), con descarga a CSV.
 

@@ -804,6 +804,17 @@ def _format_metric_value(metric: str, value: float) -> str:
     return f"{value:.2f}"
 
 
+def _format_metric_delta(metric: str, value: float) -> str:
+    """Like _format_metric_value, but with an explicit "+" sign for
+    non-negative values -- used for "jugador vs. promedio" differences,
+    where the sign is the whole point.
+    """
+    if pd.isna(value):
+        return "s/d"
+    sign = "+" if value >= 0 else ""
+    return f"{sign}{_format_metric_value(metric, value)}"
+
+
 def _render_podium(top: pd.DataFrame, metric: str) -> None:
     """Top-3 cards for the selected metric, medal-style -- a quick highlight
     before the full table, reusing the same card component as Equipo.
@@ -929,6 +940,126 @@ def _render_ranking_tab(con, filters: Filters) -> None:
             )
 
 
+PLAYER_FORM_ROLLING_WINDOW = 5
+
+# Rate metrics compared against the position average on the player's own
+# profile -- minutos_totales is deliberately left out here (it already has
+# its own stat card, and "minutes vs. position average" isn't a performance
+# comparison the way the others are).
+PLAYER_COMPARISON_METRICS = [
+    "goles_por90",
+    "asistencias_por90",
+    "calificacion_promedio",
+    "duelos_ganados_pct",
+    "pases_precision_promedio",
+]
+
+
+def _player_form_chart(jugados: pd.DataFrame) -> go.Figure:
+    """Calificación per match (marker size = minutos, color = resultado del
+    equipo) with a rolling-average line -- one chart instead of two
+    unrelated ones, same visual language as Equipo's forma reciente chart.
+    """
+    jugados = jugados.sort_values("fecha").reset_index(drop=True)
+    rolling = jugados["calificacion"].rolling(window=PLAYER_FORM_ROLLING_WINDOW, min_periods=1).mean()
+    colors = jugados["resultado_partido"].map(fmt.RESULT_COLORS).fillna("#9AA5B1")
+    sizes = 7 + (jugados["minutos"].clip(lower=0, upper=120) / 120) * 18
+
+    def _hover(row: pd.Series) -> str:
+        calificacion = f"{row['calificacion']:.1f}" if pd.notna(row["calificacion"]) else "s/d"
+        return (
+            f"<b>{row['fecha']}</b> vs {row['rival']} ({fmt.condition_label(row['condicion'])})<br>"
+            f"Marcador: {row['resultado']}<br>Minutos: {int(row['minutos'])}<br>"
+            f"Calificación: {calificacion}"
+        )
+
+    fig = go.Figure()
+    fig.add_scatter(
+        x=jugados["fecha"],
+        y=rolling,
+        mode="lines",
+        name="Forma reciente",
+        line=dict(color=fmt.PRIMARY_COLOR, width=2),
+        hoverinfo="skip",
+    )
+    fig.add_scatter(
+        x=jugados["fecha"],
+        y=jugados["calificacion"],
+        mode="markers",
+        name="Calificación por partido",
+        marker=dict(size=sizes, color=colors, line=dict(width=1, color="white")),
+        hovertext=jugados.apply(_hover, axis=1),
+        hoverinfo="text",
+    )
+    fig.update_layout(
+        title=f"Forma (Promedio móvil de {PLAYER_FORM_ROLLING_WINDOW} partidos)",
+        yaxis_title="Calificación",
+        xaxis_title="",
+        showlegend=False,
+    )
+    return fig
+
+
+def _render_player_comparison_table(con, jugados: pd.DataFrame, anios: list[int] | None) -> None:
+    """Jugador vs. promedio de su posición, one row per headline metric --
+    a table instead of a chart since the metrics have very different scales
+    (goles/90 ~0-1, calificación ~0-10, % ~0-100) and wouldn't share a
+    readable axis.
+    """
+    posicion_moda = jugados["posicion"].mode()
+    if posicion_moda.empty:
+        return
+    posicion = posicion_moda.iat[0]
+
+    pos_avg = dashboard_data.position_averages(con, anios=anios)
+    avg_row = pos_avg[pos_avg["posicion"] == posicion]
+
+    minutos_totales = jugados["minutos"].sum()
+    duelos_totales = jugados["duelos_totales"].sum()
+    player_values = {
+        "goles_por90": jugados["goles"].sum() / minutos_totales * 90 if minutos_totales else float("nan"),
+        "asistencias_por90": jugados["asistencias"].sum() / minutos_totales * 90 if minutos_totales else float("nan"),
+        "calificacion_promedio": jugados["calificacion"].mean(),
+        "duelos_ganados_pct": jugados["duelos_ganados"].sum() / duelos_totales if duelos_totales else float("nan"),
+        "pases_precision_promedio": jugados["pases_precision_num"].mean(),
+    }
+
+    rows = []
+    for metric in PLAYER_COMPARISON_METRICS:
+        jugador_valor = player_values[metric]
+        promedio_valor = avg_row.iloc[0][metric] if not avg_row.empty and metric in avg_row.columns else float("nan")
+        diferencia = (
+            jugador_valor - promedio_valor if pd.notna(jugador_valor) and pd.notna(promedio_valor) else float("nan")
+        )
+        rows.append(
+            {
+                "Métrica": RANKING_METRICS[metric],
+                "Jugador": _format_metric_value(metric, jugador_valor),
+                f"Promedio {fmt.position_label(posicion)}": _format_metric_value(metric, promedio_valor),
+                "Diferencia": _format_metric_delta(metric, diferencia),
+            }
+        )
+
+    st.subheader("Comparación con el promedio de su posición")
+    st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
+
+
+def _render_player_season_table(con, jugador: str, anios: list[int] | None) -> None:
+    resumen = dashboard_data.player_season_summary_filtered(con, jugadores=[jugador], anios=anios)
+    if resumen.empty:
+        return
+    resumen_display = resumen.assign(posicion=resumen["posicion"].map(fmt.position_label))
+    resumen_display = _scale_percent_columns(resumen_display)
+
+    st.subheader("Resumen por temporada")
+    st.dataframe(
+        resumen_display.sort_values("anio"),
+        width="stretch",
+        hide_index=True,
+        column_config=RANKING_COLUMN_CONFIG,
+    )
+
+
 def _render_player_profile_tab(con, filters: Filters) -> None:
     st.header("Ficha de jugador")
 
@@ -943,36 +1074,36 @@ def _render_player_profile_tab(con, filters: Filters) -> None:
         st.info(f"{filters.jugador_ficha} no registra minutos jugados en los datos disponibles.")
         return
 
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Partidos jugados", len(jugados))
-    c2.metric("Minutos totales", int(jugados["minutos"].sum()))
+    posicion_moda = jugados["posicion"].mode()
+    posicion_label = fmt.position_label(posicion_moda.iat[0]) if not posicion_moda.empty else "s/d"
+    st.subheader(f"{filters.jugador_ficha} · {posicion_label}")
+
     calificacion_promedio = jugados["calificacion"].mean()
-    c3.metric(
-        "Calificación promedio",
-        f"{calificacion_promedio:.2f}" if pd.notna(calificacion_promedio) else "n/d",
+    _stat_card_row(
+        [
+            {"label": "Partidos jugados", "value": len(jugados)},
+            {"label": "Minutos totales", "value": int(jugados["minutos"].sum())},
+            {
+                "label": "Calificación promedio",
+                "value": f"{calificacion_promedio:.2f}" if pd.notna(calificacion_promedio) else "s/d",
+            },
+            {"label": "Goles", "value": int(jugados["goles"].sum())},
+            {"label": "Asistencias", "value": int(jugados["asistencias"].sum())},
+            {
+                "label": "Tarjetas",
+                "value": f"🟨 {int(jugados['amarillas'].sum())} · 🟥 {int(jugados['rojas'].sum())}",
+            },
+        ]
     )
 
-    _render_chart(
-        px.line(
-            jugados,
-            x="fecha",
-            y="calificacion",
-            markers=True,
-            title="Calificación por partido",
-            color_discrete_sequence=[fmt.PRIMARY_COLOR],
-            labels={"calificacion": "Calificación", "fecha": "Fecha"},
-        )
+    _render_chart(_player_form_chart(jugados))
+    st.caption(
+        "El tamaño de cada punto es proporcional a los minutos jugados en ese partido; el color "
+        "es el resultado del equipo en ese partido (🟢 ganó, 🟡 empató, 🔴 perdió)."
     )
-    _render_chart(
-        px.bar(
-            jugados,
-            x="fecha",
-            y="minutos",
-            title="Minutos jugados por partido",
-            color_discrete_sequence=[fmt.ACCENT_COLOR],
-            labels={"minutos": "Minutos", "fecha": "Fecha"},
-        )
-    )
+
+    _render_player_comparison_table(con, jugados, filters.anios)
+    _render_player_season_table(con, filters.jugador_ficha, filters.anios)
 
 
 def _render_comparator_tab(con, filters: Filters) -> None:

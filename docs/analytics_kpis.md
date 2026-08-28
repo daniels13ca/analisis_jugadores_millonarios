@@ -100,8 +100,10 @@ Plotly, ver [README](../README.md#dashboard)):
 2. Ranking de jugadores por `goles_por90` / `asistencias_por90` /
    `calificacion_promedio` / minutos / % duelos ganados, filtrable por
    posición y año.
-3. Ficha de jugador: serie de `calificacion` en el tiempo, minutos por
-   partido.
+3. Ficha de jugador: cards de resumen (partidos, minutos, calificacion,
+   goles, asistencias, tarjetas), grafico de forma combinado (calificacion
+   por partido + promedio movil), comparacion contra el promedio de su
+   posicion, y tabla de resumen por temporada.
 4. Comparador de 2+ jugadores (o el mismo jugador en distintos años).
 
 Todo lo demás (clustering, índices compuestos, posición en la tabla de la
