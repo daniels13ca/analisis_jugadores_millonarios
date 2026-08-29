@@ -368,6 +368,67 @@ def player_season_summary_filtered(
     return dataframe.reset_index(drop=True)
 
 
+def player_summary_aggregate(
+    con: duckdb.DuckDBPyConnection,
+    jugadores: list[str],
+    anios: list[int] | None = None,
+) -> pd.DataFrame:
+    """One row per jugador, aggregating every match they played within the
+    filtered year range -- unlike player_season_summary_filtered (one row
+    per jugador x anio), this collapses seasons into a single summary per
+    player, since the sidebar's year range is what controls that window;
+    a jugador-vs-jugador comparison shouldn't fragment into one row per
+    year it played. Also reports anio_min/anio_max so the UI can show what
+    season span each player's row actually covers (a player who only
+    joined partway through the filtered range won't cover all of it).
+
+    Rates are recomputed from the aggregated totals -- same approach as
+    analytics.build_player_season_summary -- so a season with few minutes
+    doesn't skew the combined rate the way averaging per-season rates
+    would.
+    """
+    if not jugadores:
+        return pd.DataFrame()
+
+    placeholders = ", ".join("?" for _ in jugadores)
+    where_clauses = [f"jugador IN ({placeholders})", "jugo"]
+    params: list = list(jugadores)
+    year_sql, year_params = _year_condition("fecha", anios)
+    if year_sql:
+        where_clauses.append(year_sql)
+        params.extend(year_params)
+
+    query = f"SELECT * FROM player_match_features WHERE {' AND '.join(where_clauses)}"
+    played = con.execute(query, params).df()
+    if played.empty:
+        return played
+
+    grouped = played.groupby("jugador", dropna=False)
+    summary = grouped.agg(
+        posicion=("posicion", lambda s: s.mode().iat[0] if not s.mode().empty else pd.NA),
+        partidos_jugados=("match_id", "nunique"),
+        titularidades=("titular", "sum"),
+        minutos_totales=("minutos", "sum"),
+        goles=("goles", "sum"),
+        asistencias=("asistencias", "sum"),
+        duelos_totales=("duelos_totales", "sum"),
+        duelos_ganados=("duelos_ganados", "sum"),
+        amarillas=("amarillas", "sum"),
+        rojas=("rojas", "sum"),
+        calificacion_promedio=("calificacion", "mean"),
+        pases_precision_promedio=("pases_precision_num", "mean"),
+        anio_min=("anio", "min"),
+        anio_max=("anio", "max"),
+    ).reset_index()
+
+    minutos = summary["minutos_totales"].replace(0, pd.NA)
+    summary["goles_por90"] = summary["goles"] / minutos * 90
+    summary["asistencias_por90"] = summary["asistencias"] / minutos * 90
+    summary["duelos_ganados_pct"] = summary["duelos_ganados"] / summary["duelos_totales"].replace(0, pd.NA)
+
+    return summary.sort_values("jugador").reset_index(drop=True)
+
+
 def player_match_history(
     con: duckdb.DuckDBPyConnection,
     jugador: str,

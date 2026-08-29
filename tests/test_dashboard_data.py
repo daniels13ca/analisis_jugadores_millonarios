@@ -41,6 +41,8 @@ def analytics_dir(tmp_path: Path) -> Path:
             "remates_al_arco": [1, 0, 0, 0],
             "pases_totales": [30, 40, 15, 0],
             "pases_precision": ["80%", "90%", "70%", "0%"],
+            "pases_precision_num": [0.8, 0.9, 0.7, 0.0],
+            "anio": [2024, 2024, 2024, 2024],
             "entradas": [0, 2, 0, 0],
             "intercepciones": [0, 1, 0, 0],
             "despejes": [0, 0, 0, 0],
@@ -280,6 +282,38 @@ def test_player_season_summary_filtered(analytics_dir: Path) -> None:
 
     only_player_a = dashboard_data.player_season_summary_filtered(con, jugadores=["Jugador A"])
     assert len(only_player_a) == 2  # 2023 and 2024 rows
+
+
+def test_player_summary_aggregate_collapses_years_into_one_row(analytics_dir: Path) -> None:
+    con = dashboard_data.get_connection(analytics_dir)
+    summary = dashboard_data.player_summary_aggregate(con, jugadores=["Jugador A", "Jugador B"]).set_index("jugador")
+
+    assert list(summary.index) == ["Jugador A", "Jugador B"]
+
+    # Jugador A played m1 (90') and m2 (45'); m4 is excluded (jugo=False).
+    a = summary.loc["Jugador A"]
+    assert a["partidos_jugados"] == 2
+    assert a["minutos_totales"] == 135
+    assert a["goles"] == 1
+    assert a["calificacion_promedio"] == pytest.approx(7.25)
+    assert a["goles_por90"] == pytest.approx(1 / 135 * 90)
+    assert a["duelos_ganados_pct"] == pytest.approx(3 / 6)
+    assert a["anio_min"] == 2024
+    assert a["anio_max"] == 2024
+
+    b = summary.loc["Jugador B"]
+    assert b["partidos_jugados"] == 1
+    assert b["asistencias_por90"] == pytest.approx(1.0)
+
+
+def test_player_summary_aggregate_empty_when_no_jugadores(analytics_dir: Path) -> None:
+    con = dashboard_data.get_connection(analytics_dir)
+    assert dashboard_data.player_summary_aggregate(con, jugadores=[]).empty
+
+
+def test_player_summary_aggregate_empty_when_year_excludes_everything(analytics_dir: Path) -> None:
+    con = dashboard_data.get_connection(analytics_dir)
+    assert dashboard_data.player_summary_aggregate(con, jugadores=["Jugador A"], anios=[2099]).empty
 
 
 def test_player_match_history_ordered_by_fecha(analytics_dir: Path) -> None:

@@ -99,12 +99,29 @@ Plotly, ver [README](../README.md#dashboard)):
    por campeonato.
 2. Ranking de jugadores por `goles_por90` / `asistencias_por90` /
    `calificacion_promedio` / minutos / % duelos ganados, filtrable por
-   posición y año.
+   posición y año, con dos vistas: por temporada (una fila por jugador y
+   año) o agregado por jugador (una fila por jugador, todo el rango de
+   años filtrado).
 3. Ficha de jugador: cards de resumen (partidos, minutos, calificacion,
-   goles, asistencias, tarjetas), grafico de forma combinado (calificacion
-   por partido + promedio movil), comparacion contra el promedio de su
-   posicion, y tabla de resumen por temporada.
-4. Comparador de 2+ jugadores (o el mismo jugador en distintos años).
+   goles, asistencias, tarjetas, tendencia vs. temporada anterior),
+   grafico de forma combinado (calificacion por partido + promedio movil),
+   comparacion contra el promedio de su posicion, y tabla de resumen por
+   temporada.
+4. Comparativa de jugadores: 2+ jugadores lado a lado (mismo control de
+   jugadores que Ficha), una fila agregada por jugador cubriendo el rango
+   de años del sidebar (no una fila por año), con cards de resumen, tabla
+   con resaltado del mejor valor por métrica, radar normalizado — por
+   posición para goles/asistencias por 90', por liga completa para el
+   resto — y evolución año a año cuando el seleccionado es un único
+   jugador.
+
+Transversal a las 5 vistas: un filtro de "mínimo de partidos jugados"
+ajustable en el sidebar (antes hardcodeado y solo en Ranking) que ahora
+también dispara una advertencia visible en Ficha y Comparativa en vez de
+mostrar una tasa poco representativa en silencio; un glosario de métricas
+colapsable; descarga a CSV en todas las tablas principales; y `jugador` /
+`anio_inicio` / `anio_fin` reflejados en la URL para compartir una vista
+filtrada por link.
 
 Todo lo demás (clustering, índices compuestos, posición en la tabla de la
 liga, etc.) queda para la Fase 6 — ver el listado de ideas en el

@@ -52,6 +52,7 @@ RANKING_COLUMN_CONFIG = {
     "puesto": st.column_config.NumberColumn("#", format="%d"),
     "jugador": st.column_config.TextColumn("Jugador"),
     "anio": st.column_config.NumberColumn("Año", format="%d"),
+    "temporadas": st.column_config.TextColumn("Temporadas"),
     "posicion": st.column_config.TextColumn("Pos."),
     "partidos_jugados": st.column_config.NumberColumn("PJ", format="%d"),
     "titularidades": st.column_config.NumberColumn("Titular", format="%d"),
@@ -266,16 +267,43 @@ class Filters:
     condiciones: list[str] | None
     resultados: list[str] | None
     posiciones: list[str] | None
-    jugador_ficha: str | None
-    jugadores_comparador: list[str]
+    jugadores: list[str]
     goles_anio: int | None
+    min_partidos: int
+
+
+DEFAULT_MIN_PARTIDOS = 3
+
+
+def _query_param_years(anio_min: int, anio_max: int) -> tuple[int, int]:
+    """Read anio_inicio/anio_fin from the URL's query params, clamped to the
+    dataset's actual range -- lets a filtered "Rango de años" be shared via
+    link. Falls back to the full range if absent, malformed, or inverted.
+    """
+    raw_inicio = st.query_params.get("anio_inicio")
+    raw_fin = st.query_params.get("anio_fin")
+    if not (raw_inicio and raw_inicio.isdigit() and raw_fin and raw_fin.isdigit()):
+        return anio_min, anio_max
+    inicio = min(max(int(raw_inicio), anio_min), anio_max)
+    fin = min(max(int(raw_fin), anio_min), anio_max)
+    return (inicio, fin) if inicio <= fin else (anio_min, anio_max)
 
 
 def _render_sidebar(con) -> Filters:
     """Sidebar: a title, the two dataset-freshness dates, and every filter
     control -- grouped as team/match filters (which apply to Equipo and
     Partidos) then, past a divider, player filters (Ranking, Ficha,
-    Comparador). No other text.
+    Comparativa). No other text.
+
+    One multiselect ("Jugadores") drives both Ficha and Comparativa instead
+    of a separate control per tab -- Ficha shows the ficha of whichever one
+    is selected (or lets you pick, in-tab, when there's more than one), and
+    Comparativa compares everyone selected. Defaults to the first player so
+    Ficha has something to show without any action.
+
+    "Rango de años" and "Jugadores" are mirrored into the URL's query
+    params, so a specific filtered view (a player, a year range) can be
+    shared via link and comes back on reload.
     """
     with st.sidebar:
         st.header("Análisis de rendimiento: Millonarios FC")
@@ -295,13 +323,16 @@ def _render_sidebar(con) -> Filters:
             anios = anios_disponibles
         else:
             anio_min, anio_max = min(anios_disponibles), max(anios_disponibles)
+            default_anios = _query_param_years(anio_min, anio_max)
             anio_inicio, anio_fin = st.slider(
                 "Rango de años",
                 min_value=anio_min,
                 max_value=anio_max,
-                value=(anio_min, anio_max),
+                value=default_anios,
             )
             anios = list(range(anio_inicio, anio_fin + 1))
+            st.query_params["anio_inicio"] = str(anio_inicio)
+            st.query_params["anio_fin"] = str(anio_fin)
 
         campeonatos = dashboard_data.list_campeonatos(con)
         selected_campeonatos = st.multiselect("Campeonato", campeonatos, default=campeonatos)
@@ -320,15 +351,42 @@ def _render_sidebar(con) -> Filters:
 
         st.divider()
 
-        # --- Ranking / Ficha de jugador / Comparador ---
+        # --- Ranking / Ficha de jugador / Comparativa ---
         posiciones = dashboard_data.list_posiciones(con)
         selected_posiciones = st.multiselect(
             "Posición (Ranking)", posiciones, default=posiciones, format_func=fmt.position_label
         )
 
         jugadores = dashboard_data.list_jugadores(con)
-        jugador_ficha = st.selectbox("Jugador (Ficha)", jugadores) if jugadores else None
-        jugadores_comparador = st.multiselect("Jugadores (Comparador)", jugadores)
+        if "jugadores_selector" not in st.session_state:
+            # Seed session_state before instantiating the widget, instead of
+            # passing `default=` -- a "Ver ficha" button elsewhere (see
+            # _select_jugador_for_ficha) also writes this same key via the
+            # Session State API, and Streamlit warns if a keyed widget gets
+            # both a `default=` and a session_state write.
+            query_jugadores = [j for j in st.query_params.get_all("jugador") if j in jugadores]
+            st.session_state["jugadores_selector"] = query_jugadores or (jugadores[:1] if jugadores else [])
+        selected_jugadores = st.multiselect(
+            "Jugadores (Ficha / Comparativa)",
+            jugadores,
+            key="jugadores_selector",
+        )
+        if selected_jugadores:
+            st.query_params["jugador"] = selected_jugadores
+        elif "jugador" in st.query_params:
+            del st.query_params["jugador"]
+
+        min_partidos = st.slider(
+            "Mínimo de partidos (Ranking / Ficha / Comparativa)",
+            min_value=1,
+            max_value=10,
+            value=DEFAULT_MIN_PARTIDOS,
+            help=(
+                "Por debajo de este número de partidos jugados, una tasa por 90' o un porcentaje "
+                "puede estar dominado por uno o dos partidos puntuales -- las vistas de jugadores "
+                "avisan cuando esto aplica en vez de ocultarlo en silencio."
+            ),
+        )
 
         return Filters(
             anios=anios,
@@ -336,15 +394,60 @@ def _render_sidebar(con) -> Filters:
             condiciones=selected_condiciones or None,
             resultados=selected_resultados or None,
             posiciones=selected_posiciones or None,
-            jugador_ficha=jugador_ficha,
-            jugadores_comparador=jugadores_comparador,
+            jugadores=selected_jugadores,
             goles_anio=goles_anio,
+            min_partidos=min_partidos,
         )
+
+
+def _render_glossary() -> None:
+    """Definitions built lazily (not a module-level constant) since it
+    references FORM_ROLLING_WINDOW, which is defined further down this
+    file -- that's fine at call time (this only runs once main() is
+    already executing, well after the whole module has loaded).
+    """
+    glosario = [
+        ("Calificación", "Puntaje de rendimiento de API-Football para ese partido, en escala 0-10."),
+        (
+            "Forma reciente (Equipo)",
+            f"Promedio móvil de puntos obtenidos (0/1/3) en los últimos {FORM_ROLLING_WINDOW} partidos.",
+        ),
+        (
+            "Goles / Asistencias por 90'",
+            "Goles o asistencias normalizados a 90 minutos jugados, para poder comparar jugadores "
+            "con distintos minutos en cancha (un suplente y un titular, por ejemplo).",
+        ),
+        ("% Duelos ganados", "Duelos individuales ganados / duelos individuales disputados."),
+        ("% Precisión de pase", "Pases completados / pases intentados."),
+        (
+            "Promedio de posición / vs. promedio",
+            "El promedio de esa métrica entre todos los jugadores que juegan esa misma posición "
+            "(defensa, mediocampista, etc.), y la diferencia del jugador puntual contra ese "
+            "promedio.",
+        ),
+        (
+            "Radar (Comparativa)",
+            "Cada eje normaliza el valor del jugador contra el mejor registrado en una temporada "
+            "en la liga -- en su posición para goles/asistencias por 90' (métricas donde la "
+            "posición influye mucho), y en general para calificación/% duelos/% pases. 100% = el "
+            "mejor registrado.",
+        ),
+        (
+            "Mínimo de partidos",
+            "Filtro del sidebar: por debajo de ese número de partidos jugados, una tasa por 90' o "
+            "un porcentaje puede estar dominado por uno o dos partidos puntuales y dejar de ser "
+            "representativa -- las vistas de jugadores avisan cuando esto aplica.",
+        ),
+    ]
+    with st.expander("❓ Glosario de métricas"):
+        for termino, definicion in glosario:
+            st.markdown(f"**{termino}**: {definicion}")
 
 
 def main() -> None:
     _inject_style()
     st.title("⚽ Millonarios FC: Rendimiento")
+    _render_glossary()
 
     if not (ANALYTICS_DIR / "match_results.csv").exists():
         st.error(
@@ -357,7 +460,7 @@ def main() -> None:
     filters = _render_sidebar(con)
 
     tab_equipo, tab_partidos, tab_ranking, tab_jugador, tab_comparador = st.tabs(
-        ["📊 Equipo", "📋 Partidos", "🏆 Ranking de jugadores", "🔎 Ficha de jugador", "⚖️ Comparador"]
+        ["📊 Equipo", "📋 Partidos", "🏆 Ranking de jugadores", "🔎 Ficha de jugador", "⚖️ Comparativa de jugadores"]
     )
 
     with tab_equipo:
@@ -369,7 +472,7 @@ def main() -> None:
     with tab_jugador:
         _render_player_profile_tab(con, filters)
     with tab_comparador:
-        _render_comparator_tab(con, filters)
+        _render_comparison_tab(con, filters)
 
 
 FORM_ROLLING_WINDOW = 10
@@ -485,6 +588,12 @@ def _render_team_tab(con, filters: Filters) -> None:
         victorias=victorias,
         empates=empates,
         derrotas=derrotas,
+    )
+    st.download_button(
+        "⬇️ Descargar partidos con forma (CSV)",
+        data=resultados.to_csv(index=False).encode("utf-8-sig"),
+        file_name="equipo_partidos.csv",
+        mime="text/csv",
     )
 
     _render_chart(_form_chart(resultados))
@@ -717,6 +826,12 @@ def _render_matches_tab(con, filters: Filters) -> None:
         key="partidos_historico",
     )
     st.caption(f"{len(partidos)} partido(s)")
+    st.download_button(
+        "⬇️ Descargar histórico (CSV)",
+        data=display.to_csv(index=False).encode("utf-8-sig"),
+        file_name="historico_partidos.csv",
+        mime="text/csv",
+    )
 
     sin_datos = int((~partidos["tiene_datos_jugadores"]).sum())
     if sin_datos:
@@ -757,8 +872,9 @@ def _render_matches_tab(con, filters: Filters) -> None:
             "delantera): La API no expone la posición exacta en cancha ni el esquema táctico."
         )
 
+    lineup_display = lineup.assign(posicion=lineup["posicion"].map(fmt.position_label))
     st.dataframe(
-        lineup.assign(posicion=lineup["posicion"].map(fmt.position_label)),
+        lineup_display,
         width="stretch",
         hide_index=True,
         column_config={
@@ -784,14 +900,15 @@ def _render_matches_tab(con, filters: Filters) -> None:
             "rojas": st.column_config.NumberColumn("🟥", format="%d"),
         },
     )
+    st.download_button(
+        "⬇️ Descargar planilla (CSV)",
+        data=lineup_display.to_csv(index=False).encode("utf-8-sig"),
+        file_name=f"planilla_{str(match_id).replace(':', '_')}.csv",
+        mime="text/csv",
+    )
 
 
 MEDALS = ["🥇", "🥈", "🥉"]
-
-# Minimum partidos_jugados to appear in the "vs. promedio de posición" chart
-# -- below this, a single big/bad game can dominate a per-90 rate and make
-# the comparison meaningless.
-MIN_MATCHES_FOR_VS_AVG_CHART = 3
 
 
 def _format_metric_value(metric: str, value: float) -> str:
@@ -815,36 +932,96 @@ def _format_metric_delta(metric: str, value: float) -> str:
     return f"{sign}{_format_metric_value(metric, value)}"
 
 
-def _render_podium(top: pd.DataFrame, metric: str) -> None:
+def _select_jugador_for_ficha(jugador: str) -> None:
+    """on_click callback for the podium's "Ver ficha" buttons -- runs before
+    the script reruns from the top, so it's safe to write straight into the
+    sidebar multiselect's session_state key here (unlike doing it inline in
+    the tab body, which would run *after* that widget was already
+    instantiated this same run and raise). Streamlit can't switch the
+    active tab programmatically, so the user still clicks over to Ficha/
+    Comparativa themselves; this just saves re-typing the name there.
+    """
+    st.session_state["jugadores_selector"] = [jugador]
+
+
+def _render_podium(top: pd.DataFrame, metric: str, periodo_col: str) -> None:
     """Top-3 cards for the selected metric, medal-style -- a quick highlight
-    before the full table, reusing the same card component as Equipo.
+    before the full table, reusing the same card component as Equipo. Below
+    the cards, one button per player pre-selects them in the sidebar's
+    "Jugadores" control, to jump into Ficha/Comparativa without re-typing
+    the name.
 
     Always shows partidos_jugados alongside the metric: a single standout
     match can otherwise look like a full-season leader (e.g. 4+ goles_por90
     from one great game), which is misleading without that context.
     """
+    top3 = top.head(3)
     podio = [
         {
             "icon": medalla,
             "value": _format_metric_value(metric, row[metric]),
-            "label": f"{row['jugador']} ({int(row['anio'])}) · {int(row['partidos_jugados'])} PJ",
+            "label": f"{row['jugador']} ({row[periodo_col]}) · {int(row['partidos_jugados'])} PJ",
         }
-        for medalla, (_, row) in zip(MEDALS, top.head(3).iterrows())
+        for medalla, (_, row) in zip(MEDALS, top3.iterrows())
     ]
-    if podio:
-        _stat_card_row(podio)
+    if not podio:
+        return
+    _stat_card_row(podio)
+
+    columns = st.columns(len(top3))
+    for col, (_, row) in zip(columns, top3.iterrows()):
+        with col:
+            st.button(
+                f"🔎 Ver ficha: {row['jugador']}",
+                key=f"ver_ficha_{row['jugador']}_{row[periodo_col]}",
+                on_click=_select_jugador_for_ficha,
+                args=(row["jugador"],),
+                width="stretch",
+            )
+    st.caption(
+        "Al hacer clic, el jugador queda seleccionado en el sidebar -- ve a la pestaña 'Ficha de "
+        "jugador' o 'Comparativa de jugadores' para verlo."
+    )
 
 
 def _render_ranking_tab(con, filters: Filters) -> None:
     st.header("Ranking de jugadores")
+    st.caption(
+        "No se ve afectado por los filtros de Campeonato/Condición del sidebar -- sí por "
+        "Posición, Rango de años y Mínimo de partidos."
+    )
 
     metric = st.selectbox("Ordenar / Graficar por", list(RANKING_METRICS), format_func=RANKING_METRICS.get)
-
-    summary = dashboard_data.player_season_summary_filtered(
-        con,
-        anios=filters.anios,
-        posiciones=filters.posiciones,
+    vista = st.radio(
+        "Vista",
+        ["Por temporada", "Agregado por jugador"],
+        horizontal=True,
+        help=(
+            "Por temporada: una fila por jugador y año (un jugador puede aparecer varias veces "
+            "en el top). Agregado: una sola fila por jugador, sumando todo el rango de años del "
+            "sidebar -- útil para comparar carreras en vez de temporadas puntuales."
+        ),
     )
+
+    if vista == "Por temporada":
+        summary = dashboard_data.player_season_summary_filtered(
+            con, anios=filters.anios, posiciones=filters.posiciones,
+        )
+        periodo_col = "anio"
+    else:
+        summary = dashboard_data.player_summary_aggregate(
+            con, jugadores=dashboard_data.list_jugadores(con), anios=filters.anios,
+        )
+        if not summary.empty:
+            if filters.posiciones:
+                summary = summary[summary["posicion"].isin(filters.posiciones)]
+            summary = summary.assign(
+                temporadas=[
+                    _format_season_span(anio_min, anio_max)
+                    for anio_min, anio_max in zip(summary["anio_min"], summary["anio_max"])
+                ]
+            ).drop(columns=["anio_min", "anio_max", "amarillas", "rojas"])
+        periodo_col = "temporadas"
 
     if summary.empty:
         st.info("No hay jugadores para los filtros seleccionados.")
@@ -853,7 +1030,9 @@ def _render_ranking_tab(con, filters: Filters) -> None:
     # Benchmark against the position average for the chosen metric, not the
     # whole squad -- a center-back and a forward shouldn't share a
     # goles_por90 scale. Averages use the same (global) anio filter as the
-    # table.
+    # table, and the per-season table regardless of which vista is active
+    # (a per-season average is still a meaningful yardstick for an
+    # aggregated-by-jugador rate).
     pos_avg = dashboard_data.position_averages(con, anios=filters.anios)
     if metric in pos_avg.columns:
         avg_by_posicion = pos_avg.set_index("posicion")[metric]
@@ -865,9 +1044,9 @@ def _render_ranking_tab(con, filters: Filters) -> None:
     summary_sorted = summary.sort_values(metric, ascending=False, na_position="last")
     top = summary_sorted.dropna(subset=[metric]).head(15)
     if not top.empty:
-        top = top.assign(jugador_anio=top["jugador"] + " (" + top["anio"].astype(str) + ")")
+        top = top.assign(jugador_anio=top["jugador"] + " (" + top[periodo_col].astype(str) + ")")
 
-    _render_podium(top, metric)
+    _render_podium(top, metric, periodo_col)
 
     summary_display = summary_sorted.assign(
         posicion=summary_sorted["posicion"].map(fmt.position_label),
@@ -914,9 +1093,9 @@ def _render_ranking_tab(con, filters: Filters) -> None:
 
         top_vs_avg = top.dropna(subset=["vs_promedio_posicion"]) if "vs_promedio_posicion" in top.columns else top.iloc[0:0]
         # A player with 1-2 matches can look like a standout (or a disaster)
-        # purely from a small sample; require a minimum before comparing
-        # them against their position's average.
-        top_vs_avg = top_vs_avg[top_vs_avg["partidos_jugados"] >= MIN_MATCHES_FOR_VS_AVG_CHART]
+        # purely from a small sample; require the sidebar's minimum before
+        # comparing them against their position's average.
+        top_vs_avg = top_vs_avg[top_vs_avg["partidos_jugados"] >= filters.min_partidos]
         if not top_vs_avg.empty:
             vs_avg_values = top_vs_avg["vs_promedio_posicion"] * scale
             colors = vs_avg_values.apply(lambda v: fmt.WIN_COLOR if v >= 0 else fmt.LOSS_COLOR)
@@ -934,18 +1113,19 @@ def _render_ranking_tab(con, filters: Filters) -> None:
             )
             _render_chart(vs_avg_fig)
             st.caption(
-                f"Solo incluye jugadores con {MIN_MATCHES_FOR_VS_AVG_CHART} o más partidos jugados "
-                "en el año seleccionado, para no comparar contra el promedio a alguien con una "
-                "muestra muy chica."
+                f"Solo incluye jugadores con {filters.min_partidos} o más partidos jugados (ajustable "
+                "en el sidebar), para no comparar contra el promedio a alguien con una muestra muy "
+                "chica."
             )
 
 
 PLAYER_FORM_ROLLING_WINDOW = 5
 
 # Rate metrics compared against the position average on the player's own
-# profile -- minutos_totales is deliberately left out here (it already has
-# its own stat card, and "minutes vs. position average" isn't a performance
-# comparison the way the others are).
+# profile, and reused as the radar-chart axes in the Comparativa tab --
+# minutos_totales is deliberately left out here (it already has its own
+# stat card, and "minutes vs. position average"/"minutes vs. league max"
+# isn't a performance comparison the way the others are).
 PLAYER_COMPARISON_METRICS = [
     "goles_por90",
     "asistencias_por90",
@@ -1000,7 +1180,9 @@ def _player_form_chart(jugados: pd.DataFrame) -> go.Figure:
     return fig
 
 
-def _render_player_comparison_table(con, jugados: pd.DataFrame, anios: list[int] | None) -> None:
+def _render_player_comparison_table(
+    con, jugados: pd.DataFrame, anios: list[int] | None, min_partidos: int
+) -> None:
     """Jugador vs. promedio de su posición, one row per headline metric --
     a table instead of a chart since the metrics have very different scales
     (goles/90 ~0-1, calificación ~0-10, % ~0-100) and wouldn't share a
@@ -1041,6 +1223,11 @@ def _render_player_comparison_table(con, jugados: pd.DataFrame, anios: list[int]
         )
 
     st.subheader("Comparación con el promedio de su posición")
+    if len(jugados) < min_partidos:
+        st.caption(
+            f"⚠️ {len(jugados)} partido(s) jugado(s) -- por debajo del mínimo configurado en el "
+            f"sidebar ({min_partidos}). Las tasas de abajo pueden no ser representativas."
+        )
     st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
 
 
@@ -1049,34 +1236,70 @@ def _render_player_season_table(con, jugador: str, anios: list[int] | None) -> N
     if resumen.empty:
         return
     resumen_display = resumen.assign(posicion=resumen["posicion"].map(fmt.position_label))
-    resumen_display = _scale_percent_columns(resumen_display)
+    resumen_display = _scale_percent_columns(resumen_display).sort_values("anio")
 
     st.subheader("Resumen por temporada")
     st.dataframe(
-        resumen_display.sort_values("anio"),
+        resumen_display,
         width="stretch",
         hide_index=True,
         column_config=RANKING_COLUMN_CONFIG,
     )
+    st.download_button(
+        "⬇️ Descargar resumen por temporada (CSV)",
+        data=resumen_display.to_csv(index=False).encode("utf-8-sig"),
+        file_name=f"{jugador.replace(' ', '_').lower()}_temporadas.csv",
+        mime="text/csv",
+        key="ficha_download_temporadas",
+    )
+
+
+def _season_trend_card(con, jugador: str) -> dict:
+    """"Tendencia vs. 2023" style card, comparing the player's two most
+    recent seasons on record -- independent of the sidebar's year range
+    (that range decides what the cards/chart above aggregate over; this is
+    always "the last full season vs. the one before it", a fixed fact about
+    the player's trajectory).
+    """
+    historial = dashboard_data.player_season_summary_filtered(con, jugadores=[jugador]).sort_values("anio")
+    if len(historial) < 2:
+        return {"label": "Tendencia", "value": "s/d"}
+
+    ultimo, anterior = historial.iloc[-1], historial.iloc[-2]
+    delta = ultimo["calificacion_promedio"] - anterior["calificacion_promedio"]
+    flecha = "▲" if delta > 0 else "▼" if delta < 0 else "→"
+    return {
+        "label": f"Tendencia (Calif. vs. {int(anterior['anio'])})",
+        "value": f"{flecha} {_format_metric_delta('calificacion_promedio', delta)}",
+    }
 
 
 def _render_player_profile_tab(con, filters: Filters) -> None:
     st.header("Ficha de jugador")
+    st.caption(
+        "No se ve afectada por los filtros de Campeonato/Condición del sidebar -- sí por el "
+        "Rango de años."
+    )
 
-    if filters.jugador_ficha is None:
-        st.info("No hay jugadores disponibles.")
+    if not filters.jugadores:
+        st.info("Selecciona al menos un jugador en el sidebar.")
         return
 
-    historial = dashboard_data.player_match_history(con, filters.jugador_ficha, anios=filters.anios)
+    if len(filters.jugadores) == 1:
+        jugador = filters.jugadores[0]
+    else:
+        jugador = st.selectbox("Ver ficha de", filters.jugadores)
+
+    historial = dashboard_data.player_match_history(con, jugador, anios=filters.anios)
     jugados = historial[historial["jugo"].fillna(False)]
 
     if jugados.empty:
-        st.info(f"{filters.jugador_ficha} no registra minutos jugados en los datos disponibles.")
+        st.info(f"{jugador} no registra minutos jugados en los datos disponibles.")
         return
 
     posicion_moda = jugados["posicion"].mode()
     posicion_label = fmt.position_label(posicion_moda.iat[0]) if not posicion_moda.empty else "s/d"
-    st.subheader(f"{filters.jugador_ficha} · {posicion_label}")
+    st.subheader(f"{jugador} · {posicion_label}")
 
     calificacion_promedio = jugados["calificacion"].mean()
     _stat_card_row(
@@ -1093,6 +1316,7 @@ def _render_player_profile_tab(con, filters: Filters) -> None:
                 "label": "Tarjetas",
                 "value": f"🟨 {int(jugados['amarillas'].sum())} · 🟥 {int(jugados['rojas'].sum())}",
             },
+            _season_trend_card(con, jugador),
         ]
     )
 
@@ -1102,68 +1326,258 @@ def _render_player_profile_tab(con, filters: Filters) -> None:
         "es el resultado del equipo en ese partido (🟢 ganó, 🟡 empató, 🔴 perdió)."
     )
 
-    _render_player_comparison_table(con, jugados, filters.anios)
-    _render_player_season_table(con, filters.jugador_ficha, filters.anios)
+    _render_player_comparison_table(con, jugados, filters.anios, filters.min_partidos)
+    _render_player_season_table(con, jugador, filters.anios)
 
-
-def _render_comparator_tab(con, filters: Filters) -> None:
-    st.header("Comparador de jugadores / Temporadas")
-    st.caption(
-        "Elige 2 o más jugadores en el sidebar para comparar. Para comparar un jugador contra sí "
-        "mismo en otra temporada, selecciónalo y después filtra por año con el rango del sidebar."
+    st.download_button(
+        "⬇️ Descargar historial partido a partido (CSV)",
+        data=jugados.to_csv(index=False).encode("utf-8-sig"),
+        file_name=f"{jugador.replace(' ', '_').lower()}_partidos.csv",
+        mime="text/csv",
+        key="ficha_download_partidos",
     )
 
-    if len(filters.jugadores_comparador) < 1:
+
+# Numeric season-summary columns eligible for the "quién tiene el mejor
+# valor" table highlight -- identifying columns (jugador/anio/posicion) are
+# deliberately excluded.
+COMPARISON_HIGHLIGHT_COLUMNS = [
+    "partidos_jugados",
+    "titularidades",
+    "minutos_totales",
+    "goles",
+    "asistencias",
+    "goles_por90",
+    "asistencias_por90",
+    "calificacion_promedio",
+    "duelos_ganados_pct",
+    "pases_precision_promedio",
+]
+
+# Qualitative palette for the radar chart's per-jugador polygons -- a
+# neutral, muted set (not WIN/DRAW/LOSS green/amber/red, which already
+# carry a specific meaning everywhere else in the dashboard) since a
+# jugador has no inherent color.
+RADAR_COLOR_SEQUENCE = px.colors.qualitative.Set2
+
+
+def _format_season_span(anio_min: float, anio_max: float) -> str:
+    """"2022-2024", or just "2023" when a player's rows all fall in one
+    year -- shows what part of the sidebar's year range a given jugador's
+    aggregated row actually covers (a player who joined partway through
+    won't cover all of it).
+    """
+    if pd.isna(anio_min) or pd.isna(anio_max):
+        return "s/d"
+    anio_min, anio_max = int(anio_min), int(anio_max)
+    return f"{anio_min}" if anio_min == anio_max else f"{anio_min}-{anio_max}"
+
+
+def _comparison_stat_cards(row: pd.Series) -> list[dict]:
+    return [
+        {"label": "Temporadas", "value": _format_season_span(row["anio_min"], row["anio_max"])},
+        {"label": "Partidos", "value": int(row["partidos_jugados"])},
+        {"label": "Minutos", "value": int(row["minutos_totales"])},
+        {"label": "Goles", "value": int(row["goles"])},
+        {"label": "Asistencias", "value": int(row["asistencias"])},
+        {"label": "Calificación", "value": _format_metric_value("calificacion_promedio", row["calificacion_promedio"])},
+        {"label": "% Duelos ganados", "value": _format_metric_value("duelos_ganados_pct", row["duelos_ganados_pct"])},
+    ]
+
+
+def _highlight_best_per_metric(df: pd.DataFrame):
+    """Wrap df in a pandas Styler that highlights the max value in each
+    comparison metric column -- makes it obvious at a glance who has the
+    best number in each stat, without touching the underlying values
+    (column_config still controls how each one is displayed).
+    """
+    columns = [c for c in COMPARISON_HIGHLIGHT_COLUMNS if c in df.columns]
+    return df.style.highlight_max(subset=columns, color=f"{fmt.ACCENT_COLOR}40")
+
+
+# goles_por90/asistencias_por90 depend heavily on position (a forward's
+# ceiling is nowhere near a defensive midfielder's) -- normalizing those
+# against the *position's* max, not the whole league's, so a non-forward
+# doesn't read as uniformly "flat" on the radar regardless of how good they
+# are at their own job. Calificación/% duelos/% pases are more
+# position-agnostic and stay normalized against the league-wide max.
+POSITION_RELATIVE_RADAR_METRICS = {"goles_por90", "asistencias_por90"}
+
+
+def _comparison_radar_chart(con, comparacion: pd.DataFrame, anios: list[int] | None) -> go.Figure:
+    """One filled polygon per jugador across PLAYER_COMPARISON_METRICS, each
+    metric normalized against the best *single-season* value in the same
+    (year-filtered) season table -- so a polygon's shape reflects that
+    player's own standing against the best anyone has done, and doesn't
+    reshape just because a stronger or weaker player is added to the
+    comparison. See POSITION_RELATIVE_RADAR_METRICS for which axes use a
+    position-specific ceiling instead of the whole league's.
+    """
+    domain = dashboard_data.player_season_summary_filtered(con, anios=anios)
+    global_maxes = {
+        metric: domain[metric].max() if metric in domain.columns and domain[metric].notna().any() else float("nan")
+        for metric in PLAYER_COMPARISON_METRICS
+    }
+    position_maxes = (
+        domain.groupby("posicion")[list(POSITION_RELATIVE_RADAR_METRICS)].max()
+        if not domain.empty
+        else pd.DataFrame()
+    )
+
+    def _max_for(metric: str, posicion) -> float:
+        if metric in POSITION_RELATIVE_RADAR_METRICS and posicion in position_maxes.index:
+            return position_maxes.loc[posicion, metric]
+        return global_maxes[metric]
+
+    labels = [RANKING_METRICS[metric] for metric in PLAYER_COMPARISON_METRICS]
+
+    fig = go.Figure()
+    for idx, (_, row) in enumerate(comparacion.iterrows()):
+        values = []
+        hover_text = []
+        for metric in PLAYER_COMPARISON_METRICS:
+            max_value = _max_for(metric, row["posicion"])
+            raw_value = row[metric]
+            if pd.isna(raw_value) or pd.isna(max_value) or max_value == 0:
+                values.append(0)
+            else:
+                values.append(raw_value / max_value * 100)
+            # The radial position is a relative "% of the best", which reads
+            # as ambiguous on its own for a metric that's already itself a
+            # percentage (% duelos, % pases) -- the tooltip spells out both
+            # numbers, and which ceiling (position or league) was used, so
+            # there's no confusing "the metric's own %" with "% of the max".
+            basis = (
+                f"de {fmt.position_label(row['posicion'])} en la liga"
+                if metric in POSITION_RELATIVE_RADAR_METRICS
+                else "en la liga"
+            )
+            hover_text.append(
+                f"{RANKING_METRICS[metric]}: {_format_metric_value(metric, raw_value)}"
+                f"<br>Nivel: {values[-1]:.0f}% del máximo de una temporada {basis}"
+                if pd.notna(raw_value)
+                else f"{RANKING_METRICS[metric]}: s/d"
+            )
+        color = RADAR_COLOR_SEQUENCE[idx % len(RADAR_COLOR_SEQUENCE)]
+        fig.add_trace(
+            go.Scatterpolar(
+                r=values + values[:1],
+                theta=labels + labels[:1],
+                fill="toself",
+                name=row["jugador"],
+                line=dict(color=color),
+                opacity=0.75,
+                text=hover_text + hover_text[:1],
+                hovertemplate="<b>%{fullData.name}</b><br>%{text}<extra></extra>",
+            )
+        )
+    fig.update_layout(
+        title=(
+            "Comparación por métrica<br>"
+            "<sup>Goles/asistencias por 90': % del máximo de su posición · el resto: % del máximo "
+            "de la liga</sup>"
+        ),
+        polar=dict(radialaxis=dict(visible=True, range=[0, 100], ticksuffix="% del máx.")),
+    )
+    return fig
+
+
+def _render_comparison_evolution_chart(con, filters: Filters) -> None:
+    """A metric's year-over-year line, shown only for the "un solo jugador,
+    distintas temporadas" case -- with 2+ different players selected, the
+    radar above already covers the snapshot comparison and a per-metric
+    evolution line wouldn't have a single subject to follow.
+    """
+    if len(filters.jugadores) != 1:
+        return
+
+    jugador = filters.jugadores[0]
+    per_year = dashboard_data.player_season_summary_filtered(con, jugadores=[jugador], anios=filters.anios)
+    if per_year["anio"].nunique() < 2:
+        return
+
+    metric = st.selectbox(
+        "Métrica a comparar en el tiempo",
+        list(RANKING_METRICS),
+        format_func=RANKING_METRICS.get,
+        key="comparador_metric",
+    )
+    scale = _metric_scale(metric)
+    data = per_year.sort_values("anio").copy()
+    if scale != 1:
+        data[metric] = data[metric] * scale
+
+    _render_chart(
+        px.line(
+            data,
+            x="anio",
+            y=metric,
+            markers=True,
+            title=f"Evolución de {jugador}: {RANKING_METRICS[metric]}",
+            color_discrete_sequence=[fmt.PRIMARY_COLOR],
+            labels={"anio": "Año", metric: RANKING_METRICS[metric]},
+        )
+    )
+
+
+def _render_comparison_tab(con, filters: Filters) -> None:
+    st.header("Comparativa de jugadores")
+    st.caption(
+        "Elige 2 o más jugadores en el sidebar para comparar. Para ver la evolución de un solo "
+        "jugador entre temporadas, selecciónalo solo a él y ajusta el rango de años del sidebar. "
+        "No se ve afectada por los filtros de Campeonato/Condición del sidebar."
+    )
+
+    if not filters.jugadores:
         st.info("Selecciona al menos un jugador en el sidebar.")
         return
 
-    comparacion = dashboard_data.player_season_summary_filtered(
-        con, jugadores=filters.jugadores_comparador, anios=filters.anios
-    )
+    comparacion = dashboard_data.player_summary_aggregate(con, jugadores=filters.jugadores, anios=filters.anios)
     if comparacion.empty:
-        st.info("No hay datos de temporada para la selección.")
+        st.info("No hay datos para la selección.")
         return
 
-    comparacion = comparacion.assign(
-        jugador_anio=comparacion["jugador"] + " (" + comparacion["anio"].astype(str) + ")"
-    )
-    comparacion_display = comparacion.assign(posicion=comparacion["posicion"].map(fmt.position_label))
+    bajo_muestra = comparacion[comparacion["partidos_jugados"] < filters.min_partidos]["jugador"].tolist()
+    if bajo_muestra:
+        st.caption(
+            f"⚠️ {', '.join(bajo_muestra)} — menos de {filters.min_partidos} partido(s) jugado(s) "
+            "en el rango filtrado; sus tasas por 90'/porcentajes pueden no ser representativas."
+        )
+
+    for _, row in comparacion.sort_values("jugador").iterrows():
+        st.markdown(f"**{row['jugador']} · {fmt.position_label(row['posicion'])}**")
+        _stat_card_row(_comparison_stat_cards(row))
+
+    comparacion_display = comparacion.assign(
+        posicion=comparacion["posicion"].map(fmt.position_label),
+        temporadas=[
+            _format_season_span(anio_min, anio_max)
+            for anio_min, anio_max in zip(comparacion["anio_min"], comparacion["anio_max"])
+        ],
+    ).drop(columns=["anio_min", "anio_max", "amarillas", "rojas"])
     comparacion_display = _scale_percent_columns(comparacion_display)
     st.dataframe(
-        comparacion_display.drop(columns=["jugador_anio"]),
+        _highlight_best_per_metric(comparacion_display),
         width="stretch",
         hide_index=True,
         column_config=RANKING_COLUMN_CONFIG,
     )
     st.download_button(
         "⬇️ Descargar comparación (CSV)",
-        data=comparacion_display.drop(columns=["jugador_anio"]).to_csv(index=False).encode("utf-8-sig"),
+        data=comparacion_display.to_csv(index=False).encode("utf-8-sig"),
         file_name="comparacion_jugadores.csv",
         mime="text/csv",
     )
 
-    metric = st.selectbox(
-        "Métrica a comparar",
-        list(RANKING_METRICS),
-        format_func=RANKING_METRICS.get,
-        key="comparador_metric",
+    _render_chart(_comparison_radar_chart(con, comparacion, filters.anios))
+    st.caption(
+        "Cada métrica está normalizada contra el máximo de una temporada dentro del rango de años "
+        "filtrado (por posición para goles/asistencias por 90', por liga completa para el resto) "
+        "-- así la forma del polígono refleja el nivel general del jugador y no solo la "
+        "comparación entre los seleccionados."
     )
-    comparacion_scale = _metric_scale(metric)
-    comparacion_chart = (
-        comparacion.assign(**{metric: comparacion[metric] * comparacion_scale})
-        if comparacion_scale != 1
-        else comparacion
-    )
-    _render_chart(
-        px.bar(
-            comparacion_chart,
-            x="jugador_anio",
-            y=metric,
-            title=f"Comparación: {RANKING_METRICS[metric]}",
-            color_discrete_sequence=[fmt.PRIMARY_COLOR],
-            labels={"jugador_anio": "", metric: RANKING_METRICS[metric]},
-        )
-    )
+
+    _render_comparison_evolution_chart(con, filters)
 
 
 if __name__ == "__main__":

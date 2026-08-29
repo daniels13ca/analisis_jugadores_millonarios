@@ -276,16 +276,30 @@ propio (`.streamlit/config.toml` + CSS inyectado en `app.py`: tipografia Inter, 
 cards con valores centrados) en vez del Streamlit por defecto.
 
 **Todos los filtros viven en el sidebar** (no hay controles sueltos dentro de las pestañas), que
-por lo demas solo muestra un titulo y dos fechas — cuando se actualizaron los datos y la fecha del
-ultimo partido — sin texto adicional. Los filtros de equipo/partidos van primero, despues un
-separador, despues los de jugadores:
+por lo demas solo muestra un titulo, dos fechas — cuando se actualizaron los datos y la fecha del
+ultimo partido — y un expander "❓ Glosario de métricas" (colapsado por defecto, con la definicion
+de calificacion, forma reciente, tasas por 90', etc.). Los filtros de equipo/partidos van primero,
+despues un separador, despues los de jugadores:
 
-- `Rango de años`: el unico filtro que aplica a las 5 vistas a la vez.
-- `Campeonato` / `Condición`: compartidos entre Equipo y Partidos (mismo significado en ambas).
+- `Rango de años`: el unico filtro que aplica a las 5 vistas a la vez. Se refleja en la URL
+  (`?anio_inicio=...&anio_fin=...`) para poder compartir un link con un rango puntual ya aplicado.
+- `Campeonato` / `Condición`: compartidos entre Equipo y Partidos (mismo significado en ambas) — no
+  afectan a Ranking, Ficha ni Comparativa (cada una de esas 3 pestañas lo aclara en un caption bajo
+  su titulo).
 - `Resultado (Partidos)`, `Año (Gráfico de goles)`: especificos de Equipo/Partidos.
 - *(separador)*
-- `Posición (Ranking)`, `Jugador (Ficha)`, `Jugadores (Comparador)`: especificos de cada vista de
-  jugadores.
+- `Posición (Ranking)`: especifico de Ranking (tambien aplica a su vista "Agregado por jugador").
+- `Jugadores (Ficha / Comparativa)`: un unico multiselect que alimenta ambas vistas — Ficha muestra
+  la ficha del seleccionado (o deja elegir cual, dentro de la pestaña, si hay mas de uno) y
+  Comparativa compara a todos los seleccionados. Antes eran dos controles separados; se unificaron
+  porque ambas vistas comparten el mismo universo de jugadores. Tambien se refleja en la URL
+  (`?jugador=...`), y un boton "🔎 Ver ficha" en el podio de Ranking lo pre-selecciona (no hay forma
+  de cambiar de pestaña por codigo en Streamlit, asi que igual hay que hacer clic en Ficha o
+  Comparativa despues).
+- `Mínimo de partidos (Ranking / Ficha / Comparativa)`: umbral ajustable (por defecto 3) por debajo
+  del cual una tasa por 90' o un porcentaje puede estar dominado por uno o dos partidos puntuales.
+  Ranking ya lo usaba (antes hardcodeado) para su grafico "vs. promedio de posicion"; Ficha y
+  Comparativa ahora muestran una advertencia (⚠️) en vez de mostrar la tasa sin avisar.
 
 Las posiciones (`D`/`F`/`G`/`M`, tal como las devuelve la API) se muestran siempre traducidas
 (Defensa/Delantero/Arquero/Mediocampista — `formatting.POSITION_LABELS`) en el filtro y en toda
@@ -296,36 +310,56 @@ Dentro de cada pestaña solo quedan los controles que no son "filtros" sino opci
 metrica graficar, que partido puntual ver la planilla) — ver
 [docs/analytics_kpis.md](docs/analytics_kpis.md) para la prioridad detras de cada vista:
 
-1. **Equipo**: card de resultados (ganados/empatados/perdidos), forma reciente (promedio movil de
-   10 partidos, con marcadores coloreados por resultado), puntos acumulados por año (comparacion
-   de ritmo entre temporadas, eje X por mes), goles a favor/en contra por partido (barras
-   apiladas), resumen por condicion (local/visitante) y por campeonato.
+1. **Equipo**: card de resultados (ganados/empatados/perdidos), boton de descarga a CSV de los
+   partidos con su forma, forma reciente (promedio movil de 10 partidos, con marcadores coloreados
+   por resultado), puntos acumulados por año (comparacion de ritmo entre temporadas, eje X por
+   mes), goles a favor/en contra por partido (barras apiladas), resumen por condicion
+   (local/visitante) y por campeonato.
 2. **Partidos**: tabla "Histórico de Partidos" — fecha, rival, condicion (🏠/✈️), marcador y
-   resultado (🟢/🟡/🔴). Seleccionando una fila (click en la tabla, no es un filtro del sidebar)
-   se actualiza todo lo de abajo: un diagrama de cancha con la alineación titular (una linea por
-   posicion — arquero/defensa/mediocampo/delantera, ver `_lineup_pitch_positions` en `app.py`; es
-   una formacion *aproximada*, la API no da coordenadas reales en cancha ni el esquema tactico) y
-   la tabla "Planilla individual de partido" (titulares/suplentes, minutos, calificacion, goles, y
-   el resto de las stats de cada jugador, en el mismo orden arquero → defensa → mediocampista →
-   delantero); sin seleccionar nada se muestra el partido mas reciente.
-3. **Ranking de jugadores**: podio (🥇🥈🥉) con el top 3 de la metrica elegida (selector "Ordenar /
-   Graficar por", dentro de la pestaña: goles/asistencias por 90', calificacion promedio, minutos,
-   % de duelos ganados o % de precision de pase) — cada card muestra tambien los partidos jugados,
-   para que una actuacion de un solo partido no se lea como un liderato de temporada completa.
-   Tabla completa con columna de puesto (`#`) y boton de descarga a CSV, grafico de barras del top
-   15, y un grafico de barras divergente (verde/rojo) mostrando quien esta por encima o por debajo
-   del promedio de su posicion (`promedio_posicion` / `vs_promedio_posicion`) en esa metrica —
-   limitado a jugadores con 3+ partidos jugados (aclarado en un pie de pagina bajo el grafico), por
-   la misma razon.
-4. **Ficha de jugador**: encabezado con nombre y posicion, cards de partidos jugados/minutos/
-   calificacion promedio/goles/asistencias/tarjetas, un grafico de forma (calificacion partido a
-   partido con marcadores coloreados por resultado del equipo y tamaño segun minutos jugados, mas
-   una linea de promedio movil de 5 partidos — mismo lenguaje visual que la forma reciente de
-   Equipo), tabla de comparacion contra el promedio de su posicion en las metricas clave, y tabla
-   de resumen por temporada (misma logica que `player_season_summary`), todo para el jugador
-   elegido en el sidebar.
-5. **Comparador**: los jugadores elegidos en el sidebar, lado a lado (2+ jugadores, o el mismo
-   jugador en distintos años usando el rango del sidebar), con descarga a CSV.
+   resultado (🟢/🟡/🔴), con descarga a CSV. Seleccionando una fila (click en la tabla, no es un
+   filtro del sidebar) se actualiza todo lo de abajo: un diagrama de cancha con la alineación
+   titular (una linea por posicion — arquero/defensa/mediocampo/delantera, ver
+   `_lineup_pitch_positions` en `app.py`; es una formacion *aproximada*, la API no da coordenadas
+   reales en cancha ni el esquema tactico) y la tabla "Planilla individual de partido" (con su
+   propia descarga a CSV; titulares/suplentes, minutos, calificacion, goles, y el resto de las
+   stats de cada jugador, en el mismo orden arquero → defensa → mediocampista → delantero); sin
+   seleccionar nada se muestra el partido mas reciente.
+3. **Ranking de jugadores**: selector "Vista" (dentro de la pestaña) para elegir entre **Por
+   temporada** (una fila por jugador y año — un jugador puede aparecer varias veces en el top) y
+   **Agregado por jugador** (una sola fila por jugador, sumando todo el `Rango de años` del
+   sidebar, vía la misma `player_summary_aggregate` que usa Comparativa). Podio (🥇🥈🥉) con el top
+   3 de la metrica elegida (selector "Ordenar / Graficar por": goles/asistencias por 90',
+   calificacion promedio, minutos, % de duelos ganados o % de precision de pase) — cada card
+   muestra tambien los partidos jugados, y debajo hay un botón "🔎 Ver ficha" por cada uno de los
+   3 (pre-selecciona ese jugador en el sidebar). Tabla completa con columna de puesto (`#`) y boton
+   de descarga a CSV, grafico de barras del top 15, y un grafico de barras divergente (verde/rojo)
+   mostrando quien esta por encima o por debajo del promedio de su posicion
+   (`promedio_posicion` / `vs_promedio_posicion`) en esa metrica — limitado a jugadores con el
+   "Mínimo de partidos" del sidebar (aclarado en un pie de pagina bajo el grafico), por la misma
+   razon del podio.
+4. **Ficha de jugador**: para el jugador elegido en `Jugadores (Ficha / Comparativa)` (si hay mas de
+   uno seleccionado, un selector "Ver ficha de" dentro de la pestaña elige cual) — encabezado con
+   nombre y posicion, cards de partidos jugados/minutos/calificacion promedio/goles/asistencias/
+   tarjetas/tendencia (▲/▼ de la calificacion promedio de su ultima temporada vs. la anterior,
+   independiente del `Rango de años` filtrado), un grafico de forma (calificacion partido a partido
+   con marcadores coloreados por resultado del equipo y tamaño segun minutos jugados, mas una linea
+   de promedio movil de 5 partidos — mismo lenguaje visual que la forma reciente de Equipo), tabla
+   de comparacion contra el promedio de su posicion en las metricas clave (con advertencia si el
+   jugador tiene menos partidos que el "Mínimo de partidos" del sidebar), tabla de resumen por
+   temporada (misma logica que `player_season_summary`, con descarga a CSV), y descarga a CSV del
+   historial partido a partido.
+5. **Comparativa de jugadores**: los jugadores elegidos en `Jugadores (Ficha / Comparativa)`, uno
+   junto al otro (con advertencia si alguno tiene menos partidos que el "Mínimo de partidos" del
+   sidebar) — una fila de cards de resumen por jugador (agregando todas las temporadas que caigan
+   dentro del `Rango de años` del sidebar en un solo bloque, con una etiqueta de "Temporadas"
+   indicando que rango cubre cada uno), tabla completa con descarga a CSV que resalta el mejor
+   valor de cada metrica (fondo de color), y un grafico de radar por metrica clave normalizada
+   contra el maximo de una temporada — **por posicion** para goles/asistencias por 90' (un
+   defensor y un delantero no comparten techo realista ahi) y **por liga completa** para
+   calificacion/% duelos/% pases (mas independientes de la posicion); el hover de cada eje muestra
+   el valor real de la metrica ademas del nivel normalizado, para no confundir "el % propio de la
+   metrica" con "% del maximo". Si el jugador seleccionado es uno solo y cubre 2+ temporadas, se
+   agrega ademas un grafico de evolucion año a año de la metrica elegida.
 
 Si preferis apuntar a otra carpeta de analitica (por ejemplo para probar con datos de otra
 temporada sin pisar la carpeta `analytics/` principal):
